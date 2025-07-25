@@ -14,6 +14,7 @@ import DaftarUlangSiswa from './pages/DaftarUlangSiswa';
 import TambahPotonganBiaya from './pages/TambahPotonganBiaya';
 import TambahSumberInformasi from './pages/TambahSumberInformasi';
 import TambahBiayaPendaftaran from './pages/TambahBiayaPendaftaran';
+import TambahJalurPendaftaran from './pages/TambahJalurPendaftaran';
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
           <Route path="/pimpinan/tambah-potongan-biaya" element={<TambahPotonganBiaya />} />
           <Route path="/pimpinan/tambah-sumber-informasi" element={<TambahSumberInformasi />} />
           <Route path="/pimpinan/tambah-biaya-pendaftaran" element={<TambahBiayaPendaftaran />} />
+          <Route path="/pimpinan/tambah-jalur-pendaftaran" element={<TambahJalurPendaftaran />} />
 
         </Routes>
       </Router>
