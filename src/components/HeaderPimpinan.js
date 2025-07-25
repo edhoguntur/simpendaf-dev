@@ -109,9 +109,15 @@ const HeaderPimpinan = () => {
             </MenuItem>
             <MenuItem onClick={() => {
               setAnchorPendaftaran(null);
-              navigate('/pimpinan/tambah-diskon');
+              navigate('/pimpinan/tambah-potongan-biaya');
             }}>
               Tambah Potongan Biaya
+            </MenuItem>
+            <MenuItem onClick={() => {
+              setAnchorPendaftaran(null);
+              navigate('/pimpinan/tambah-biaya-pendaftaran');
+            }}>
+              Tambah Biaya Pendaftaran
             </MenuItem>
             <MenuItem onClick={() => {
               setAnchorPendaftaran(null);

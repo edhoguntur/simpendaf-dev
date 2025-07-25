@@ -13,6 +13,7 @@ import AuthProvider from './context/AuthContext';
 import DaftarUlangSiswa from './pages/DaftarUlangSiswa';
 import TambahPotonganBiaya from './pages/TambahPotonganBiaya';
 import TambahSumberInformasi from './pages/TambahSumberInformasi';
+import TambahBiayaPendaftaran from './pages/TambahBiayaPendaftaran';
 
 
 function App() {
@@ -29,8 +30,9 @@ function App() {
           <Route path="/pimpinan/metode-bayar" element={<MetodeBayar />} />
           <Route path="/pimpinan/pendaftaran-siswa" element={<PendaftaranSiswa />} />
           <Route path="/pimpinan/daftar-ulang" element={<DaftarUlangSiswa />} />
-          <Route path="/pimpinan/tambah-diskon" element={<TambahPotonganBiaya />} />
+          <Route path="/pimpinan/tambah-potongan-biaya" element={<TambahPotonganBiaya />} />
           <Route path="/pimpinan/tambah-sumber-informasi" element={<TambahSumberInformasi />} />
+          <Route path="/pimpinan/tambah-biaya-pendaftaran" element={<TambahBiayaPendaftaran />} />
 
         </Routes>
       </Router>
