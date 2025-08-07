@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, TextField, Button,
   TableContainer, Table, TableHead, TableBody,
-  TableRow, TableCell, IconButton
+  TableRow, TableCell, IconButton, MenuItem
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import { db } from '../firebase';
@@ -26,6 +26,7 @@ const DataPresenter = () => {
   });
   const [editingId, setEditingId] = useState(null);
   const [presenterList, setPresenterList] = useState([]);
+  const [kantorList, setKantorList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -35,12 +36,19 @@ const DataPresenter = () => {
 
   useEffect(() => {
     fetchData();
+    fetchKantor();
   }, []);
 
   const fetchData = async () => {
     const snapshot = await getDocs(collection(db, 'presenter'));
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setPresenterList(data);
+  };
+
+  const fetchKantor = async () => {
+    const snapshot = await getDocs(collection(db, 'kantor'));
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setKantorList(data);
   };
 
   const handleChange = (e) => {
@@ -97,7 +105,21 @@ const DataPresenter = () => {
             <TextField label="ID" name="idcode" fullWidth margin="normal" value={form.idcode} onChange={handleChange} required />
             <TextField label="Nama Lengkap" name="namaLengkap" fullWidth margin="normal" value={form.namaLengkap} onChange={handleChange} required />
             <TextField label="Nomor WA" name="nomorWA" fullWidth margin="normal" value={form.nomorWA} onChange={handleChange} required />
-            <TextField label="Alamat" name="alamat" fullWidth margin="normal" value={form.alamat} onChange={handleChange} required />
+            <TextField
+              select
+              label="Kantor"
+              name="alamat"
+              fullWidth
+              margin="normal"
+              value={form.alamat}
+              onChange={handleChange}
+              required
+            >
+              <MenuItem value="">Pilih Kantor</MenuItem>
+              {kantorList.map((k) => (
+                <MenuItem key={k.id} value={k.namaKantor}>{k.namaKantor}</MenuItem>
+              ))}
+            </TextField>
             <TextField label="Email" name="email" fullWidth margin="normal" value={form.email} onChange={handleChange} required />
             <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
               {editingId ? 'Simpan Perubahan' : 'Tambah Presenter'}

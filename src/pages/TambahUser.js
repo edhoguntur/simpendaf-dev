@@ -27,6 +27,7 @@ const TambahUser = () => {
   });
   const [editingId, setEditingId] = useState(null);
   const [users, setUsers] = useState([]);
+  const [kantorList, setKantorList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -36,12 +37,19 @@ const TambahUser = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchKantor();
   }, []);
 
   const fetchUsers = async () => {
     const snapshot = await getDocs(collection(db, 'users'));
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setUsers(data);
+  };
+
+  const fetchKantor = async () => {
+    const snapshot = await getDocs(collection(db, 'kantor'));
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setKantorList(data);
   };
 
   const handleChange = (e) => {
@@ -128,10 +136,19 @@ const TambahUser = () => {
               fullWidth margin="normal" required
             />
             <TextField
-              label="Cabang Office" name="cabangOffice"
-              value={form.cabangOffice} onChange={handleChange}
-              fullWidth margin="normal" required
-            />
+              select
+              label="Cabang Office"
+              name="cabangOffice"
+              value={form.cabangOffice}
+              onChange={handleChange}
+              fullWidth margin="normal"
+              required
+            >
+              <MenuItem value="">Pilih Kantor</MenuItem>
+              {kantorList.map(k => (
+                <MenuItem key={k.id} value={k.namaKantor}>{k.namaKantor}</MenuItem>
+              ))}
+            </TextField>
             <TextField
               select label="Role" name="role" value={form.role}
               onChange={handleChange} fullWidth margin="normal"

@@ -12,7 +12,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const { userData } = useContext(AuthContext);
   const [form, setForm] = useState({
     tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-    jurusan: '', biayaPendaftaran: '', noKwitansi: '', presenter: [], caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: ''
+    jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
+    caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: ''
   });
   const [jurusanList, setJurusanList] = useState([]);
   const [presenterList, setPresenterList] = useState([]);
@@ -20,6 +21,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const [jenisPotonganList, setJenisPotonganList] = useState([]);
   const [sumberList, setSumberList] = useState([]);
   const [metodeList, setMetodeList] = useState([]);
+  const [jalurList, setJalurList] = useState([]);
+  const [biayaList, setBiayaList] = useState([]);
 
   useEffect(() => {
     getDocs(collection(db, 'jurusan')).then(snapshot => {
@@ -40,14 +43,13 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     getDocs(collection(db, 'metode_bayar')).then(snapshot => {
       setMetodeList(snapshot.docs.map(doc => doc.data()));
     });
+    getDocs(collection(db, 'jalur_pendaftaran')).then(snapshot => {
+      setJalurList(snapshot.docs.map(doc => doc.data()));
+    });
+    getDocs(collection(db, 'biaya_pendaftaran')).then(snapshot => {
+      setBiayaList(snapshot.docs.map(doc => doc.data()));
+    });
   }, []);
-
-  useEffect(() => {
-    const selected = jurusanList.find(j => j.nama === form.jurusan);
-    if (selected) {
-      setForm(prev => ({ ...prev, biayaPendaftaran: selected.biaya }));
-    }
-  }, [form.jurusan, jurusanList]);
 
   useEffect(() => {
     if (editingData) {
@@ -56,13 +58,15 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         presenter: editingData.presenter || [],
         jenisPotongan: editingData.jenisPotongan || '',
         jumlahPotongan: editingData.jumlahPotongan || '',
-        totalBiayaPendaftaran: editingData.totalBiayaPendaftaran || editingData.biayaPendaftaran || ''
+        totalBiayaPendaftaran: editingData.totalBiayaPendaftaran || editingData.biayaPendaftaran || '',
+        jalurPendaftaran: editingData.jalurPendaftaran || '',
+        sumberInformasi: editingData.sumberInformasi || ''
       });
     } else {
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-        jurusan: '', biayaPendaftaran: '', noKwitansi: '', presenter: [], caraDaftar: '', ket: '',
-        jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', sumberInformasi: ''
+        jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
+        caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', sumberInformasi: ''
       });
     }
   }, [editingData]);
@@ -118,7 +122,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     onClose();
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-      jurusan: '', biayaPendaftaran: '', noKwitansi: '', presenter: [], caraDaftar: '', ket: ''
+      jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
+      caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', sumberInformasi: ''
     });
   };
 
@@ -137,40 +142,47 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === 'jurusan') {
-      // saat jurusan berubah, update biaya pendaftaran dan total biaya
-      // jika jurusan tidak ditemukan, set biaya pendaftaran ke 0
-      // dan total biaya ke 0 juga
-      const selectedJurusan = jurusanList.find(j => j.nama === value);
-      const biayaPendaftaran = selectedJurusan ? parseCurrency(selectedJurusan.biaya) : 0;
+    if (name === 'biayaPendaftaran') {
+      const biayaPendaftaran = parseCurrency(value);
       const jumlahPotongan = parseCurrency(form.jumlahPotongan);
+      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
+      const total = Math.max(biayaPendaftaran - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
-        jurusan: value,
-        biayaPendaftaran: selectedJurusan ? selectedJurusan.biaya : '',
-        totalBiayaPendaftaran: formatCurrency(biayaPendaftaran - jumlahPotongan)
+        [name]: value,
+        jumlahPotongan: biayaPendaftaran === 0 ? '' : potonganValid.toString(),
+        jenisPotongan: biayaPendaftaran === 0 ? '' : prev.jenisPotongan,
+        totalBiayaPendaftaran: formatCurrency(total)
       }));
     } else if (name === 'jenisPotongan') {
       const selected = jenisPotonganList.find(d => d.jenisPotongan === value);
       const jumlahPotongan = selected ? parseCurrency(selected.jumlahPotongan) : 0;
       const biayaPendaftaran = parseCurrency(form.biayaPendaftaran);
+      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
+      const total = Math.max(biayaPendaftaran - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
         jenisPotongan: value,
-        jumlahPotongan: selected ? selected.jumlahPotongan : '',
-        totalBiayaPendaftaran: formatCurrency(biayaPendaftaran - jumlahPotongan)
+        jumlahPotongan: selected ? potonganValid.toString() : '',
+        totalBiayaPendaftaran: formatCurrency(total)
       }));
-    } else if (name === 'biayaPendaftaran') {
-      // saat biaya pendaftaran diubah, update total biaya
-      const jumlahPotongan = parseCurrency(form.jumlahPotongan);
-      const biayaPendaftaran = parseCurrency(value);
+    } else if (name === 'jumlahPotongan') {
+      const biayaPendaftaran = parseCurrency(form.biayaPendaftaran);
+      const jumlahPotongan = parseCurrency(value);
+      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
+      const total = Math.max(biayaPendaftaran - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
-        [name]: value,
-        totalBiayaPendaftaran: formatCurrency(biayaPendaftaran - jumlahPotongan)
+        jumlahPotongan: value,
+        totalBiayaPendaftaran: formatCurrency(total)
+      }));
+    } else if (name === 'jurusan') {
+      setForm(prev => ({
+        ...prev,
+        jurusan: value
       }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
@@ -202,7 +214,22 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                   <MenuItem key={i} value={j.nama}>{j.nama}</MenuItem>
                 ))}
               </TextField>
-              <TextField label="Biaya Pendaftaran" name="biayaPendaftaran" value={form.biayaPendaftaran} onChange={handleChange} fullWidth disabled />
+              <TextField
+                select
+                label="Biaya Pendaftaran"
+                name="biayaPendaftaran"
+                value={form.biayaPendaftaran}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                <MenuItem value="">Pilih Biaya Pendaftaran</MenuItem>
+                {biayaList.map((b, i) => (
+                  <MenuItem key={i} value={b.jumlahBiayaPendaftaran}>
+                    {b.jenisBiayaPendaftaran} - Rp {b.jumlahBiayaPendaftaran}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 select
                 label="Jenis Potongan"
@@ -210,6 +237,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 value={form.jenisPotongan || ''}
                 onChange={handleChange}
                 fullWidth
+                disabled={parseCurrency(form.biayaPendaftaran) === 0}
               >
                 <MenuItem value="">Tanpa Potongan Biaya</MenuItem>
                 {jenisPotonganList.map((d, i) => (
@@ -221,7 +249,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 name="jumlahPotongan"
                 value={form.jumlahPotongan ? form.jumlahPotongan.toString() : ''}
                 fullWidth
-                disabled
+                disabled={parseCurrency(form.biayaPendaftaran) === 0}
               />
               <TextField
                 label="Total Biaya Pendaftaran"
@@ -291,6 +319,20 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <MenuItem value="">Pilih Sumber Informasi</MenuItem>
                 {sumberList.map((s, i) => (
                   <MenuItem key={i} value={s.sumber}>{s.sumber}</MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Jalur Pendaftaran"
+                name="jalurPendaftaran"
+                value={form.jalurPendaftaran}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                <MenuItem value="">Pilih Jalur Pendaftaran</MenuItem>
+                {jalurList.map((j, i) => (
+                  <MenuItem key={i} value={j.jalurPendaftaran}>{j.jalurPendaftaran}</MenuItem>
                 ))}
               </TextField>
               <TextField label="Keterangan" name="ket" value={form.ket} onChange={handleChange} fullWidth multiline minRows={3} />

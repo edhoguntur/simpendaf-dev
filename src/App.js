@@ -16,6 +16,7 @@ import TambahSumberInformasi from './pages/TambahSumberInformasi';
 import TambahBiayaPendaftaran from './pages/TambahBiayaPendaftaran';
 import TambahJalurPendaftaran from './pages/TambahJalurPendaftaran';
 import TambahKantor from './pages/TambahKantor';
+import StatistikPresenter from './pages/statistikPresenter';
 
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="/pimpinan/tambah-biaya-pendaftaran" element={<TambahBiayaPendaftaran />} />
           <Route path="/pimpinan/tambah-jalur-pendaftaran" element={<TambahJalurPendaftaran />} />
           <Route path="/pimpinan/tambah-kantor" element={<TambahKantor />} />
+          <Route path="/pimpinan/statistik-presenter" element={<StatistikPresenter />} />
 
         </Routes>
       </Router>
