@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   Box, Paper, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead,
@@ -10,9 +10,11 @@ import {
   FileDownload, Visibility, HowToReg
 } from '@mui/icons-material';
 import HeaderPimpinan from '../components/HeaderPimpinan';
+import HeaderPresenter from '../components/HeaderPresenter';
 import FormPendaftaranSiswa from '../components/FormPendaftaranSiswa';
 import DetailPendaftaranDialog from '../components/DetailPendaftaranDialog';
 import FormDaftarUlang from '../components/FormDaftarUlang';
+import { AuthContext } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
   collection, getDocs, query, where, deleteDoc, doc
@@ -29,6 +31,7 @@ const currentDate = new Date();
 const currentYear = currentDate.getFullYear();
 
 const PendaftaranSiswa = () => {
+  const { userData } = useContext(AuthContext);
   const [data, setData] = useState([]);
   const [search, setSearch] = useState('');
   const [filterGelombang, setFilterGelombang] = useState('');
@@ -222,7 +225,7 @@ const PendaftaranSiswa = () => {
 
   return (
     <Box>
-      <HeaderPimpinan />
+      {userData?.role === 'pimpinan' ? <HeaderPimpinan /> : <HeaderPresenter />}
       <Box sx={{ p: 4 }}>
         <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="contained" onClick={() => { setOpenDrawer(true); setEditingData(null); }}>

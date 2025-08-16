@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   Box, Paper, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead,
@@ -12,6 +12,8 @@ import {
   collection, getDocs, query, where, deleteDoc, doc
 } from 'firebase/firestore';
 import HeaderPimpinan from '../components/HeaderPimpinan';
+import HeaderPresenter from '../components/HeaderPresenter';
+import { AuthContext } from '../context/AuthContext';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import FormDaftarUlang from '../components/FormDaftarUlang';
@@ -23,6 +25,7 @@ const monthNames = [
 ];
 
 const DaftarUlangSiswa = () => {
+  const { userData } = useContext(AuthContext);
   const [data, setData] = useState([]);
   const [search, setSearch] = useState('');
   const [gelombangList, setGelombangList] = useState([]);
@@ -137,7 +140,7 @@ const DaftarUlangSiswa = () => {
 
   return (
     <Box>
-      <HeaderPimpinan />
+      {userData?.role === 'pimpinan' ? <HeaderPimpinan /> : <HeaderPresenter />}
       <Box sx={{ p: 4 }}>
         <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="outlined" onClick={handleExport}>
