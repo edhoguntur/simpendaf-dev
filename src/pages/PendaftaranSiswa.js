@@ -38,7 +38,7 @@ const PendaftaranSiswa = () => {
   const [gelombangList, setGelombangList] = useState([]);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [editingData, setEditingData] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'tglDaftar', direction: 'desc' });
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [selectedPendaftar, setSelectedPendaftar] = useState(null);
@@ -127,6 +127,19 @@ const PendaftaranSiswa = () => {
 
   const sortedData = [...data].sort((a, b) => {
     if (!sortConfig.key) return 0;
+
+    // Special handling for date sorting
+    if (sortConfig.key === 'tglDaftar') {
+      const aDate = new Date(a.tglDaftar);
+      const bDate = new Date(b.tglDaftar);
+      if (sortConfig.direction === 'asc') {
+        return aDate - bDate;
+      } else {
+        return bDate - aDate;
+      }
+    }
+
+    // Default string sorting for other fields
     const aVal = a[sortConfig.key]?.toString().toLowerCase();
     const bVal = b[sortConfig.key]?.toString().toLowerCase();
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -319,7 +332,7 @@ const PendaftaranSiswa = () => {
                   >
                     Sekolah {getSortIcon('asalSekolah')}
                   </TableCell>
-                  <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis'}}>Jurusan</TableCell>
+                  <TableCell>Jurusan</TableCell>
                   <TableCell>Tgl Daftar</TableCell>
                   <TableCell>Jenis Potongan</TableCell>
                   <TableCell>Total Biaya Pendaftaran</TableCell>

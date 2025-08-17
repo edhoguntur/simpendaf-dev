@@ -8,57 +8,71 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import HeaderPimpinan from '../components/HeaderPimpinan';
 
-const StatistikPresenter = () => {
+const StatistikKantorCabang = () => {
   const [loading, setLoading] = useState(true);
-  const [presenterStats, setPresenterStats] = useState([]);
-  const [selectedPresenter, setSelectedPresenter] = useState('all');
+  const [kantorStats, setKantorStats] = useState([]);
+  const [selectedKantor, setSelectedKantor] = useState('all');
   const [selectedBulan, setSelectedBulan] = useState('all');
   const [selectedTahun, setSelectedTahun] = useState('all');
-  const [presenterList, setPresenterList] = useState([]);
+  const [kantorList, setKantorList] = useState([]);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [availableYears, setAvailableYears] = useState([]);
 
-  const processPresenterStatistics = (presenterList, pendaftaranList) => {
+  const processKantorStatistics = (kantorData, presenterList, pendaftaranList) => {
     const stats = {};
 
-    // Inisialisasi stats untuk setiap presenter
-    presenterList.forEach(presenter => {
-      stats[presenter.namaLengkap] = {
-        namaPresenter: presenter.namaLengkap,
-        alamat: presenter.alamat || 'Tidak Diketahui',
+    // Inisialisasi stats untuk setiap kantor
+    kantorData.forEach(kantor => {
+      stats[kantor.namaKantor] = {
+        namaKantor: kantor.namaKantor,
         totalPendaftaran: 0,
+        totalPresenter: 0,
+        presenterList: [],
         pendaftaranPerBulan: {},
         pendaftaranDetail: [] // untuk menyimpan detail pendaftaran dengan tanggal
       };
     });
 
-    // Hitung pendaftaran per presenter dan per bulan
+    // Hitung jumlah presenter per kantor
+    presenterList.forEach(presenter => {
+      const kantorNama = presenter.alamat || 'Tidak Diketahui';
+      if (stats[kantorNama]) {
+        stats[kantorNama].totalPresenter++;
+        stats[kantorNama].presenterList.push(presenter.namaLengkap);
+      }
+    });
+
+    // Hitung pendaftaran per kantor dan per bulan
     pendaftaranList.forEach(pendaftaran => {
-      const presenterNames = Array.isArray(pendaftaran.presenter) ? pendaftaran.presenter : [pendaftaran.presenter];
+      const presenterNames = Array.isArray(pendaftaran.presenter) ? pendaftaran.presenter : [];
 
       presenterNames.forEach(presenterName => {
-        if (presenterName && stats[presenterName]) {
-          // Ekstrak informasi tanggal
-          const tanggalDaftar = new Date(pendaftaran.tglDaftar);
-          const bulan = tanggalDaftar.getMonth() + 1;
-          const tahun = tanggalDaftar.getFullYear();
-          const bulanTahun = `${bulan}/${tahun}`;
+        const presenter = presenterList.find(p => p.namaLengkap === presenterName);
+        if (presenter) {
+          const kantorNama = presenter.alamat || 'Tidak Diketahui';
+          if (stats[kantorNama]) {
+            // Ekstrak informasi tanggal
+            const tanggalDaftar = new Date(pendaftaran.tglDaftar);
+            const bulan = tanggalDaftar.getMonth() + 1;
+            const tahun = tanggalDaftar.getFullYear();
+            const bulanTahun = `${bulan}/${tahun}`;
 
-          // Simpan detail pendaftaran
-          stats[presenterName].pendaftaranDetail.push({
-            ...pendaftaran,
-            bulan,
-            tahun,
-            tanggalDaftar
-          });
+            // Simpan detail pendaftaran
+            stats[kantorNama].pendaftaranDetail.push({
+              ...pendaftaran,
+              bulan,
+              tahun,
+              tanggalDaftar
+            });
 
-          stats[presenterName].totalPendaftaran++;
+            stats[kantorNama].totalPendaftaran++;
 
-          // Statistik per bulan
-          if (!stats[presenterName].pendaftaranPerBulan[bulanTahun]) {
-            stats[presenterName].pendaftaranPerBulan[bulanTahun] = 0;
+            // Statistik per bulan
+            if (!stats[kantorNama].pendaftaranPerBulan[bulanTahun]) {
+              stats[kantorNama].pendaftaranPerBulan[bulanTahun] = 0;
+            }
+            stats[kantorNama].pendaftaranPerBulan[bulanTahun]++;
           }
-          stats[presenterName].pendaftaranPerBulan[bulanTahun]++;
         }
       });
     });
@@ -74,7 +88,7 @@ const StatistikPresenter = () => {
     setAvailableMonths(allMonths);
     setAvailableYears(allYears.reverse()); // reverse untuk menampilkan tahun terbaru dulu
 
-    setPresenterStats(Object.values(stats));
+    setKantorStats(Object.values(stats));
   };
 
   useEffect(() => {
@@ -82,17 +96,21 @@ const StatistikPresenter = () => {
       try {
         setLoading(true);
 
+        // Fetch data kantor
+        const kantorSnapshot = await getDocs(collection(db, 'kantor'));
+        const kantorData = kantorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setKantorList(kantorData);
+
         // Fetch data presenter
         const presenterSnapshot = await getDocs(collection(db, 'presenter'));
-        const presenterData = presenterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPresenterList(presenterData);
+        const presenterList = presenterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         // Fetch data pendaftaran
         const pendaftaranSnapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
         const pendaftaranList = pendaftaranSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // Proses statistik berdasarkan presenter
-        processPresenterStatistics(presenterData, pendaftaranList);
+        // Proses statistik berdasarkan kantor cabang
+        processKantorStatistics(kantorData, presenterList, pendaftaranList);
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -105,24 +123,24 @@ const StatistikPresenter = () => {
   }, []);
 
   const getFilteredData = () => {
-    let filteredStats = presenterStats;
+    let filteredStats = kantorStats;
 
-    // Filter berdasarkan presenter
-    if (selectedPresenter !== 'all') {
-      filteredStats = filteredStats.filter(stat => stat.namaPresenter === selectedPresenter);
+    // Filter berdasarkan kantor
+    if (selectedKantor !== 'all') {
+      filteredStats = filteredStats.filter(stat => stat.namaKantor === selectedKantor);
     }
 
     // Filter berdasarkan bulan dan tahun
     if (selectedBulan !== 'all' || selectedTahun !== 'all') {
-      filteredStats = filteredStats.map(presenter => {
-        const filteredDetail = presenter.pendaftaranDetail.filter(pendaftaran => {
+      filteredStats = filteredStats.map(kantor => {
+        const filteredDetail = kantor.pendaftaranDetail.filter(pendaftaran => {
           const matchBulan = selectedBulan === 'all' || pendaftaran.bulan === parseInt(selectedBulan);
           const matchTahun = selectedTahun === 'all' || pendaftaran.tahun === parseInt(selectedTahun);
           return matchBulan && matchTahun;
         });
 
         return {
-          ...presenter,
+          ...kantor,
           totalPendaftaran: filteredDetail.length,
           pendaftaranDetail: filteredDetail
         };
@@ -133,11 +151,11 @@ const StatistikPresenter = () => {
   };
 
   const getTotalPendaftaran = () => {
-    return getFilteredData().reduce((total, presenter) => total + presenter.totalPendaftaran, 0);
+    return getFilteredData().reduce((total, kantor) => total + kantor.totalPendaftaran, 0);
   };
 
   const getTotalPresenter = () => {
-    return getFilteredData().filter(presenter => presenter.totalPendaftaran > 0).length;
+    return getFilteredData().reduce((total, kantor) => total + kantor.totalPresenter, 0);
   };
 
   const getMonthName = (month) => {
@@ -149,7 +167,7 @@ const StatistikPresenter = () => {
   };
 
   const handleResetFilters = () => {
-    setSelectedPresenter('all');
+    setSelectedKantor('all');
     setSelectedBulan('all');
     setSelectedTahun('all');
   };
@@ -170,7 +188,7 @@ const StatistikPresenter = () => {
       <HeaderPimpinan />
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          Statistik Perolehan Presenter
+          Statistik Pendaftaran Mahasiswa Baru per Kantor Cabang
         </Typography>
 
         {/* Info Period Filter */}
@@ -180,21 +198,21 @@ const StatistikPresenter = () => {
           </Typography>
         )}
 
-        {/* Filter */}
+        {/* Filter Kantor */}
         <Box sx={{ mb: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
               <FormControl fullWidth>
-                <InputLabel>Filter Presenter</InputLabel>
+                <InputLabel>Filter Kantor</InputLabel>
                 <Select
-                  value={selectedPresenter}
-                  label="Filter Presenter"
-                  onChange={(e) => setSelectedPresenter(e.target.value)}
+                  value={selectedKantor}
+                  label="Filter Kantor"
+                  onChange={(e) => setSelectedKantor(e.target.value)}
                 >
-                  <MenuItem value="all">Semua Presenter</MenuItem>
-                  {presenterList.map(presenter => (
-                    <MenuItem key={presenter.id} value={presenter.namaLengkap}>
-                      {presenter.namaLengkap}
+                  <MenuItem value="all">Semua Kantor</MenuItem>
+                  {kantorList.map(kantor => (
+                    <MenuItem key={kantor.id} value={kantor.namaKantor}>
+                      {kantor.namaKantor}
                     </MenuItem>
                   ))}
                 </Select>
@@ -237,7 +255,7 @@ const StatistikPresenter = () => {
           </Grid>
 
           {/* Reset Button */}
-          {(selectedPresenter !== 'all' || selectedBulan !== 'all' || selectedTahun !== 'all') && (
+          {(selectedKantor !== 'all' || selectedBulan !== 'all' || selectedTahun !== 'all') && (
             <Box sx={{ mt: 2 }}>
               <Button variant="outlined" onClick={handleResetFilters}>
                 Reset Filter
@@ -252,7 +270,7 @@ const StatistikPresenter = () => {
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
-                  Total Presenter
+                  Total Kantor
                 </Typography>
                 <Typography variant="h4">
                   {getFilteredData().length}
@@ -264,7 +282,7 @@ const StatistikPresenter = () => {
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
-                  Presenter Aktif
+                  Total Presenter
                 </Typography>
                 <Typography variant="h4">
                   {getTotalPresenter()}
@@ -288,10 +306,10 @@ const StatistikPresenter = () => {
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
-                  Rata-rata per Presenter
+                  Rata-rata per Kantor
                 </Typography>
                 <Typography variant="h4">
-                  {getTotalPresenter() > 0 ? Math.round(getTotalPendaftaran() / getTotalPresenter()) : 0}
+                  {getFilteredData().length > 0 ? Math.round(getTotalPendaftaran() / getFilteredData().length) : 0}
                 </Typography>
               </CardContent>
             </Card>
@@ -300,21 +318,18 @@ const StatistikPresenter = () => {
 
         {/* Charts */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          {/* Summary Chart - Pendaftaran per Presenter */}
+          {/* Summary Chart - Pendaftaran per Kantor */}
           <Grid item xs={12} md={8}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Perolehan Pendaftaran per Presenter
+                Pendaftaran Mahasiswa Baru per Kantor Cabang
               </Typography>
               <Box sx={{ mt: 2 }}>
-                {getFilteredData()
-                  .sort((a, b) => b.totalPendaftaran - a.totalPendaftaran)
-                  .slice(0, 10) // Top 10 presenter
-                  .map((presenter, index) => (
+                {getFilteredData().map((kantor, index) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">{presenter.namaPresenter}</Typography>
-                      <Typography variant="body2">{presenter.totalPendaftaran} mahasiswa baru</Typography>
+                      <Typography variant="body2">{kantor.namaKantor}</Typography>
+                      <Typography variant="body2">{kantor.totalPendaftaran} mahasiswa baru</Typography>
                     </Box>
                     <Box sx={{
                       width: '100%',
@@ -324,7 +339,7 @@ const StatistikPresenter = () => {
                       overflow: 'hidden'
                     }}>
                       <Box sx={{
-                        width: `${Math.max((presenter.totalPendaftaran / Math.max(...getFilteredData().map(p => p.totalPendaftaran), 1)) * 100, 5)}%`,
+                        width: `${Math.max((kantor.totalPendaftaran / Math.max(...getFilteredData().map(k => k.totalPendaftaran), 1)) * 100, 5)}%`,
                         height: '100%',
                         backgroundColor: '#1976d2',
                         borderRadius: 4
@@ -340,13 +355,10 @@ const StatistikPresenter = () => {
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Top 5 Presenter
+                Ringkasan Statistik
               </Typography>
               <Box sx={{ mt: 2 }}>
-                {getFilteredData()
-                  .sort((a, b) => b.totalPendaftaran - a.totalPendaftaran)
-                  .slice(0, 5)
-                  .map((presenter, index) => (
+                {getFilteredData().map((kantor, index) => (
                   <Box key={index} sx={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -356,17 +368,17 @@ const StatistikPresenter = () => {
                     backgroundColor: index % 2 === 0 ? '#f5f5f5' : 'white',
                     borderRadius: 1
                   }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        {presenter.namaPresenter}
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {kantor.namaKantor}
+                    </Typography>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography variant="body2" color="primary">
+                        {kantor.totalPendaftaran} mahasiswa baru
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {presenter.alamat}
+                        {kantor.totalPresenter} presenter
                       </Typography>
                     </Box>
-                    <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {presenter.totalPendaftaran}
-                    </Typography>
                   </Box>
                 ))}
               </Box>
@@ -377,7 +389,7 @@ const StatistikPresenter = () => {
         {/* Detail Table */}
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Detail Statistik per Presenter
+            Detail Statistik Pendaftaran Mahasiswa Baru per Kantor
             {(selectedBulan !== 'all' || selectedTahun !== 'all') && (
               <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: 2 }}>
                 (Periode: {selectedBulan !== 'all' ? getMonthName(parseInt(selectedBulan)) : 'Semua Bulan'} {selectedTahun !== 'all' ? selectedTahun : 'Semua Tahun'})
@@ -388,21 +400,25 @@ const StatistikPresenter = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>No</TableCell>
-                  <TableCell>Nama Presenter</TableCell>
-                  <TableCell>Alamat/Kantor</TableCell>
+                  <TableCell>Nama Kantor</TableCell>
+                  <TableCell align="center">Total Presenter</TableCell>
                   <TableCell align="center">Total Pendaftaran Mahasiswa Baru</TableCell>
+                  <TableCell align="center">Rata-rata per Presenter</TableCell>
+                  <TableCell>Presenter</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {getFilteredData()
-                  .sort((a, b) => b.totalPendaftaran - a.totalPendaftaran)
-                  .map((presenter, index) => (
+                {getFilteredData().map((kantor, index) => (
                   <TableRow key={index}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{presenter.namaPresenter}</TableCell>
-                    <TableCell>{presenter.alamat}</TableCell>
-                    <TableCell align="center">{presenter.totalPendaftaran}</TableCell>
+                    <TableCell>{kantor.namaKantor}</TableCell>
+                    <TableCell align="center">{kantor.totalPresenter}</TableCell>
+                    <TableCell align="center">{kantor.totalPendaftaran}</TableCell>
+                    <TableCell align="center">
+                      {kantor.totalPresenter > 0 ? Math.round(kantor.totalPendaftaran / kantor.totalPresenter) : 0}
+                    </TableCell>
+                    <TableCell>
+                      {kantor.presenterList.join(', ') || 'Tidak ada presenter'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -414,4 +430,4 @@ const StatistikPresenter = () => {
   );
 };
 
-export default StatistikPresenter;
+export default StatistikKantorCabang;

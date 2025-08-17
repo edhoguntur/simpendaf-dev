@@ -136,6 +136,12 @@ const HeaderPimpinan = () => {
             <MenuItem onClick={() => { setAnchorRekapitulasi(null); navigate('/pimpinan/statistik-presenter'); }}>
               Statistik Presenter
             </MenuItem>
+            <MenuItem onClick={() => { setAnchorRekapitulasi(null); navigate('/pimpinan/statistik-kantor-cabang'); }}>
+              Statistik Kantor Cabang
+            </MenuItem>
+            <MenuItem onClick={() => { setAnchorRekapitulasi(null); navigate('/pimpinan/rekap-mahasiswa-baru'); }}>
+              Rekap Mahasiswa Baru
+            </MenuItem>
           </Menu>
 
           {/* Data (Setup) */}
