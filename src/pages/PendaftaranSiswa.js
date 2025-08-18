@@ -51,6 +51,14 @@ const PendaftaranSiswa = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Helper function to parse Indonesian currency format
+  const parseCurrency = (value) => {
+    if (!value) return 0;
+    // Remove all dots and parse as number
+    const cleanValue = value.toString().replace(/\./g, '');
+    return parseFloat(cleanValue) || 0;
+  };
+
   const handleDaftarUlangClick = async (item) => {
     const snapshot = await getDocs(
       query(collection(db, 'daftar_ulang'), where('idPendaftar', '==', item.id))
@@ -350,7 +358,9 @@ const PendaftaranSiswa = () => {
                     <TableCell sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis'}}>{item.jurusan}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.tglDaftar}</TableCell>
                     <TableCell>{item.jenisPotongan || 'Tanpa Potongan'}</TableCell>
-                    <TableCell align='center'>{item.totalBiayaPendaftaran}</TableCell>
+                    <TableCell align='center'>
+                      Rp {parseCurrency(item.totalBiayaPendaftaran).toLocaleString('id-ID')}
+                    </TableCell>
                     <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <Tooltip title="Edit Data Pendaftaran">
                         <IconButton onClick={() => handleEdit(item)}>

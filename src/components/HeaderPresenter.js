@@ -8,6 +8,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import SchoolIcon from '@mui/icons-material/School';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LogoutIcon from '@mui/icons-material/Logout';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import { HowToReg } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -19,6 +20,7 @@ const HeaderPresenter = () => {
   const navigate = useNavigate();
 
   const [anchorPendaftaran, setAnchorPendaftaran] = useState(null);
+  const [anchorRekapitulasi, setAnchorRekapitulasi] = useState(null);
   const [dateTime, setDateTime] = useState('');
 
   const formatDateTime = () => {
@@ -94,6 +96,25 @@ const HeaderPresenter = () => {
             }}>
               <HowToReg fontSize="small" style={{ marginRight: 8 }} />
               Daftar Ulang
+            </MenuItem>
+          </Menu>
+
+          {/* Rekapitulasi */}
+          <Button
+            color="inherit"
+            startIcon={<BarChartIcon />}
+            endIcon={<ExpandMoreIcon />}
+            onClick={(e) => setAnchorRekapitulasi(e.currentTarget)}
+          >
+            Rekapitulasi
+          </Button>
+          <Menu anchorEl={anchorRekapitulasi} open={Boolean(anchorRekapitulasi)} onClose={() => setAnchorRekapitulasi(null)}>
+            <MenuItem onClick={() => {
+              setAnchorRekapitulasi(null);
+              navigate('/presenter/statistik');
+            }}>
+              <BarChartIcon fontSize="small" style={{ marginRight: 8 }} />
+              Statistik Presenter
             </MenuItem>
           </Menu>
 

@@ -20,6 +20,7 @@ import TambahBiayaPendaftaran from './pages/TambahBiayaPendaftaran';
 import TambahJalurPendaftaran from './pages/TambahJalurPendaftaran';
 import TambahKantor from './pages/TambahKantor';
 import StatistikPresenter from './pages/statistikPresenter';
+import StatistikPresenterIndividual from './pages/StatistikPresenterIndividual';
 import StatistikKantorCabang from './pages/StatistikKantorCabang';
 import RekapMahasiswaBaru from './pages/RekapMahasiswaBaru';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -130,6 +131,11 @@ function App() {
           <Route path="/presenter/daftar-ulang" element={
             <ProtectedRoute requiredRole="presenter">
               <DaftarUlangSiswa />
+            </ProtectedRoute>
+          } />
+          <Route path="/presenter/statistik" element={
+            <ProtectedRoute requiredRole="presenter">
+              <StatistikPresenterIndividual />
             </ProtectedRoute>
           } />
 
