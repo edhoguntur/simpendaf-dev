@@ -74,9 +74,69 @@ const PendaftaranSiswa = () => {
   };
 
   useEffect(() => {
+    const loadData = async () => {
+      if (!userData) return;
+
+      try {
+        let result = [];
+
+        if (userData?.role === 'pimpinan') {
+          // Pimpinan dapat melihat semua data
+          const snapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
+          result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } else if (userData?.role === 'presenter' && userData?.namaLengkap) {
+          // Presenter hanya bisa melihat data mereka sendiri
+          // Query untuk array (menggunakan array-contains)
+          const arrayQuery = query(
+            collection(db, 'pendaftaran_siswa'),
+            where('presenter', 'array-contains', userData.namaLengkap)
+          );
+
+          // Query untuk string (menggunakan ==)
+          const stringQuery = query(
+            collection(db, 'pendaftaran_siswa'),
+            where('presenter', '==', userData.namaLengkap)
+          );
+
+          // Ambil hasil dari kedua query
+          const [arraySnapshot, stringSnapshot] = await Promise.all([
+            getDocs(arrayQuery),
+            getDocs(stringQuery)
+          ]);
+
+          // Gabungkan hasil dan hilangkan duplikat berdasarkan id
+          const arrayResult = arraySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const stringResult = stringSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          const combinedResult = [...arrayResult, ...stringResult];
+          const uniqueResult = combinedResult.filter((item, index, self) =>
+            index === self.findIndex(t => t.id === item.id)
+          );
+
+          result = uniqueResult;
+        } else {
+          // Fallback: jika role tidak dikenali atau data user tidak lengkap
+          console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
+          setData([]);
+          setDaftarUlangIds([]);
+          return;
+        }
+
+        // Ambil data daftar ulang
+        const daftarUlangSnap = await getDocs(collection(db, 'daftar_ulang'));
+        const daftarUlangList = daftarUlangSnap.docs.map(doc => doc.data().nomorPendaftaran);
+
+        setData(result);
+        setDaftarUlangIds(daftarUlangList);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        alert('Gagal memuat data. Silakan coba lagi.');
+      }
+    };
+
     fetchGelombang();
-    fetchData();
-  }, []);
+    loadData();
+  }, [userData]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -90,22 +150,95 @@ const PendaftaranSiswa = () => {
   };
 
   const fetchData = async () => {
-    const snapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
-    const daftarUlangSnap = await getDocs(collection(db, 'daftar_ulang'));
+    if (!userData) return;
 
-    const result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const daftarUlangList = daftarUlangSnap.docs.map(doc => doc.data().nomorPendaftaran);
+    try {
+      let result = [];
 
-    setData(result);
-    setDaftarUlangIds(daftarUlangList);
+      if (userData?.role === 'pimpinan') {
+        // Pimpinan dapat melihat semua data
+        const snapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
+        result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } else if (userData?.role === 'presenter' && userData?.namaLengkap) {
+        // Presenter hanya bisa melihat data mereka sendiri
+        // Query untuk array (menggunakan array-contains)
+        const arrayQuery = query(
+          collection(db, 'pendaftaran_siswa'),
+          where('presenter', 'array-contains', userData.namaLengkap)
+        );
+
+        // Query untuk string (menggunakan ==)
+        const stringQuery = query(
+          collection(db, 'pendaftaran_siswa'),
+          where('presenter', '==', userData.namaLengkap)
+        );
+
+        // Ambil hasil dari kedua query
+        const [arraySnapshot, stringSnapshot] = await Promise.all([
+          getDocs(arrayQuery),
+          getDocs(stringQuery)
+        ]);
+
+        // Gabungkan hasil dan hilangkan duplikat berdasarkan id
+        const arrayResult = arraySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const stringResult = stringSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const combinedResult = [...arrayResult, ...stringResult];
+        const uniqueResult = combinedResult.filter((item, index, self) =>
+          index === self.findIndex(t => t.id === item.id)
+        );
+
+        result = uniqueResult;
+      } else {
+        // Fallback: jika role tidak dikenali atau data user tidak lengkap
+        console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
+        setData([]);
+        setDaftarUlangIds([]);
+        return;
+      }
+
+      // Ambil data daftar ulang
+      const daftarUlangSnap = await getDocs(collection(db, 'daftar_ulang'));
+      const daftarUlangList = daftarUlangSnap.docs.map(doc => doc.data().nomorPendaftaran);
+
+      setData(result);
+      setDaftarUlangIds(daftarUlangList);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      alert('Gagal memuat data. Silakan coba lagi.');
+    }
   };
 
   const handleEdit = (row) => {
+    // Cek permission untuk presenter
+    if (userData?.role === 'presenter') {
+      const isPresenterOwner = Array.isArray(row.presenter)
+        ? row.presenter.includes(userData.namaLengkap)
+        : row.presenter === userData.namaLengkap;
+
+      if (!isPresenterOwner) {
+        alert('Anda hanya dapat mengedit data siswa yang Anda tangani.');
+        return;
+      }
+    }
+
     setEditingData(row);
     setOpenDrawer(true);
   };
 
-  const handleDelete = async (id, nomorPendaftaran) => {
+  const handleDelete = async (id, nomorPendaftaran, row) => {
+    // Cek permission untuk presenter
+    if (userData?.role === 'presenter') {
+      const isPresenterOwner = Array.isArray(row.presenter)
+        ? row.presenter.includes(userData.namaLengkap)
+        : row.presenter === userData.namaLengkap;
+
+      if (!isPresenterOwner) {
+        alert('Anda hanya dapat menghapus data siswa yang Anda tangani.');
+        return;
+      }
+    }
+
     if (daftarUlangIds.includes(nomorPendaftaran)) {
       alert('Tidak bisa menghapus. Siswa ini sudah melakukan daftar ulang. Hapus data daftar ulang terlebih dahulu.');
       return;
@@ -249,9 +382,12 @@ const PendaftaranSiswa = () => {
       {userData?.role === 'pimpinan' ? <HeaderPimpinan /> : <HeaderPresenter />}
       <Box sx={{ p: 4 }}>
         <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button variant="contained" onClick={() => { setOpenDrawer(true); setEditingData(null); }}>
-            Tambah Data
-          </Button>
+          {/* Tombol Tambah Data - hanya untuk pimpinan atau sesuai kebijakan */}
+          {(userData?.role === 'pimpinan' || userData?.role === 'presenter') && (
+            <Button variant="contained" onClick={() => { setOpenDrawer(true); setEditingData(null); }}>
+              Tambah Data
+            </Button>
+          )}
           <Button variant="outlined" startIcon={<FileDownload />} onClick={handleExport}>
             Export Excel ({filteredData.length} data)
           </Button>
@@ -368,7 +504,7 @@ const PendaftaranSiswa = () => {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Hapus Data">
-                        <IconButton onClick={() => handleDelete(item.id, item.nomorPendaftaran)}>
+                        <IconButton onClick={() => handleDelete(item.id, item.nomorPendaftaran, item)}>
                           <Delete fontSize="small" />
                         </IconButton>
                       </Tooltip>

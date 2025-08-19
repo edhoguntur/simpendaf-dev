@@ -53,6 +53,19 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
   useEffect(() => {
     if (editingData) {
+      // Validasi permission untuk presenter saat edit
+      if (userData?.role === 'presenter') {
+        const isPresenterOwner = Array.isArray(editingData.presenter)
+          ? editingData.presenter.includes(userData.namaLengkap)
+          : editingData.presenter === userData.namaLengkap;
+
+        if (!isPresenterOwner) {
+          alert('Anda tidak memiliki permission untuk mengedit data ini.');
+          onClose();
+          return;
+        }
+      }
+
       setForm({
         ...editingData,
         presenter: editingData.presenter || [],
@@ -63,13 +76,21 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         sumberInformasi: editingData.sumberInformasi || ''
       });
     } else {
+      // Set default presenter berdasarkan role
+      let defaultPresenter = [];
+      if (userData?.role === 'presenter' && userData?.namaLengkap) {
+        defaultPresenter = [userData.namaLengkap];
+      }
+
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-        jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
-        caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', sumberInformasi: ''
+        jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
+        presenter: defaultPresenter,
+        caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
+        totalBiayaPendaftaran: '', sumberInformasi: ''
       });
     }
-  }, [editingData]);
+  }, [editingData, userData, onClose]);
 
   const generateNomorPendaftaran = async (tgl) => {
     const dateStr = tgl.replace(/-/g, '');
@@ -120,10 +141,19 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     }
     fetchData();
     onClose();
+
+    // Reset form dengan default presenter sesuai role
+    let defaultPresenter = [];
+    if (userData?.role === 'presenter' && userData?.namaLengkap) {
+      defaultPresenter = [userData.namaLengkap];
+    }
+
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-      jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
-      caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', sumberInformasi: ''
+      jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
+      presenter: defaultPresenter,
+      caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
+      totalBiayaPendaftaran: '', sumberInformasi: ''
     });
   };
 
@@ -268,35 +298,65 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <Typography sx={{ mb: 1 }}>Pilih Presenter</Typography>
                 <ToggleButtonGroup
                   value={form.presenter}
-                  onChange={(e, newVal) => setForm(prev => ({ ...prev, presenter: newVal }))}
+                  onChange={(e, newVal) => {
+                    // Jika role presenter, hanya bisa memilih dirinya sendiri
+                    if (userData?.role === 'presenter') {
+                      if (newVal.includes(userData.namaLengkap)) {
+                        setForm(prev => ({ ...prev, presenter: [userData.namaLengkap] }));
+                      } else {
+                        // Jika mencoba unselect dirinya sendiri, tetap pilih dirinya
+                        setForm(prev => ({ ...prev, presenter: [userData.namaLengkap] }));
+                      }
+                    } else {
+                      // Pimpinan bisa memilih siapa saja
+                      setForm(prev => ({ ...prev, presenter: newVal }));
+                    }
+                  }}
                   multiple
                   color="primary"
                   size="small"
                   sx={{ flexWrap: 'wrap', gap: 1 }}
                 >
-                  {presenterList.map((p, i) => (
-                    <ToggleButton
-                      key={i}
-                      value={p.namaLengkap}
-                      selected={form.presenter.includes(p.namaLengkap)}
-                      sx={{
-                        textTransform: 'none',
-                        borderRadius: '8px',
-                        borderColor: '#1976d2',
-                        '&.Mui-selected': {
-                          backgroundColor: '#1976d2',
-                          color: '#fff',
-                        },
-                        '&:hover': {
-                          backgroundColor: '#1565c0',
-                          color: '#fff'
+                  {presenterList
+                    .filter(p => {
+                      // Jika role presenter, hanya tampilkan dirinya sendiri
+                      if (userData?.role === 'presenter') {
+                        return p.namaLengkap === userData.namaLengkap;
+                      }
+                      // Jika role pimpinan, tampilkan semua presenter
+                      return true;
+                    })
+                    .map((p, i) => (
+                      <ToggleButton
+                        key={i}
+                        value={p.namaLengkap}
+                        selected={form.presenter.includes(p.namaLengkap)}
+                        sx={{
+                          textTransform: 'none',
+                          borderRadius: '8px',
+                          borderColor: '#1976d2',
+                          '&.Mui-selected': {
+                            backgroundColor: '#1976d2',
+                            color: '#fff',
+                          },
+                          '&:hover': {
+                            backgroundColor: '#1565c0',
+                            color: '#fff'
+                          }
+                        }}
+                      >
+                        {p.namaLengkap}
+                        {userData?.role === 'presenter' && p.namaLengkap === userData.namaLengkap &&
+                          <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>(Anda)</Typography>
                         }
-                      }}
-                    >
-                      {p.namaLengkap}
-                    </ToggleButton>
-                  ))}
+                      </ToggleButton>
+                    ))}
                 </ToggleButtonGroup>
+                {userData?.role === 'presenter' && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Sebagai presenter, Anda hanya dapat memilih diri sendiri sebagai presenter.
+                  </Typography>
+                )}
               </Box>
 
               <TextField select label="Cara Daftar" name="caraDaftar" value={form.caraDaftar} onChange={handleChange} fullWidth>
