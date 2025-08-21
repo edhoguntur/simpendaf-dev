@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import {
   Box, Paper, Button, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, IconButton, MenuItem, InputAdornment, Tooltip, TablePagination
+  TableRow, IconButton, MenuItem, InputAdornment, Tooltip, TablePagination, Typography
 } from '@mui/material';
 import {
   Edit, Delete, Search, Visibility
@@ -42,17 +42,50 @@ const DaftarUlangSiswa = () => {
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
 
+  const fetchData = useCallback(async () => {
+    if (!userData) return;
+
+    try {
+      let result = [];
+
+      if (userData?.role === 'pimpinan') {
+        // Pimpinan dapat melihat semua data daftar ulang
+        const snapshot = await getDocs(collection(db, 'daftar_ulang'));
+        result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } else if (userData?.role === 'presenter') {
+        if (userData?.cabangOffice) {
+          // Presenter hanya bisa melihat data daftar ulang sesuai cabangOffice mereka
+          const query1 = query(
+            collection(db, 'daftar_ulang'),
+            where('cabangOffice', '==', userData.cabangOffice)
+          );
+
+          const snapshot = await getDocs(query1);
+          result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } else {
+          // Jika presenter tidak memiliki cabangOffice, tidak tampilkan data apapun
+          console.warn('Presenter tidak memiliki cabangOffice:', userData);
+          result = [];
+        }
+      } else {
+        // Fallback: jika role tidak dikenali atau data user tidak lengkap
+        console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
+        setData([]);
+        return;
+      }
+
+      console.log('Fetched data:', result);
+      setData(result);
+    } catch (error) {
+      console.error('Error fetching daftar ulang data:', error);
+      alert('Gagal memuat data daftar ulang. Silakan coba lagi.');
+    }
+  }, [userData]);
+
   useEffect(() => {
     fetchData();
     fetchGelombang();
-  }, []);
-
-  const fetchData = async () => {
-    const snapshot = await getDocs(collection(db, 'daftar_ulang'));
-    const result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log('Fetched data:', result);
-    setData(result);
-  };
+  }, [fetchData]);
 
   const fetchGelombang = async () => {
     const snapshot = await getDocs(collection(db, 'gelombang'));
@@ -196,7 +229,29 @@ const DaftarUlangSiswa = () => {
           </TextField>
         </Paper>
 
-        <TableContainer component={Paper}>
+        <Paper>
+          <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">
+                Data Daftar Ulang Siswa
+              </Typography>
+              {userData?.role === 'presenter' && userData?.cabangOffice && (
+                <Typography variant="body2" color="primary" sx={{ mt: 0.5 }}>
+                  Filter: {userData.cabangOffice}
+                </Typography>
+              )}
+              {userData?.role === 'presenter' && !userData?.cabangOffice && (
+                <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
+                  Peringatan: Anda belum memiliki cabang office yang terdaftar
+                </Typography>
+              )}
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Menampilkan {paginatedData.length} dari {filteredData.length} data
+            </Typography>
+          </Box>
+
+          <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -260,6 +315,7 @@ const DaftarUlangSiswa = () => {
             `${from}-${to} dari ${count !== -1 ? count : `lebih dari ${to}`}`
           }
         />
+        </Paper>
       </Box>
 
       {/* Drawer & Dialog */}

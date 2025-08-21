@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   Box, Typography, TextField, MenuItem, Button, Drawer,
   ToggleButton, ToggleButtonGroup, IconButton
@@ -6,8 +6,10 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { AuthContext } from '../context/AuthContext';
 
 const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftarUlang }) => {
+  const { userData } = useContext(AuthContext);
   const [form, setForm] = useState({
     nomorPendaftaran: '',
     namaPendaftar: '',
@@ -30,6 +32,16 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
 
   useEffect(() => {
     if (dataPendaftar) {
+      // Validasi permission untuk presenter saat edit
+      if (isEditData && userData?.role === 'presenter') {
+        // Presenter dapat mengedit data dari cabangOffice yang sama
+        if (dataPendaftar.cabangOffice !== userData.cabangOffice) {
+          alert('Anda tidak memiliki permission untuk mengedit data ini. Data ini bukan dari cabang office Anda.');
+          onClose();
+          return;
+        }
+      }
+
       setForm({
         nomorPendaftaran: dataPendaftar.nomorPendaftaran || '',
         namaPendaftar: dataPendaftar.namaPendaftar || '',
@@ -49,13 +61,23 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
     }
 
     getDocs(collection(db, 'presenter')).then(snapshot => {
-      setPresenterList(snapshot.docs.map(doc => doc.data().namaLengkap));
+      const allPresenters = snapshot.docs.map(doc => doc.data());
+      let filteredPresenters = allPresenters;
+
+      // Filter presenter berdasarkan role user
+      if (userData?.role === 'presenter' && userData?.cabangOffice) {
+        // Presenter hanya bisa melihat presenter dari cabangOffice yang sama
+        filteredPresenters = allPresenters.filter(p => p.alamat === userData.cabangOffice);
+      }
+      // Pimpinan bisa melihat semua presenter (tidak perlu filter)
+
+      setPresenterList(filteredPresenters);
     });
 
     getDocs(collection(db, 'gelombang')).then(snapshot => {
       setGelombangList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-  }, [dataPendaftar]);
+  }, [dataPendaftar, userData, isEditData, onClose]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -68,12 +90,14 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
     }
   };
 
-  const handlePresenterChange = (e, newValue) => {
-    setForm(prev => ({ ...prev, presenter: newValue }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validasi presenter harus dipilih
+    if (!form.presenter || form.presenter.length === 0) {
+      alert('Silakan pilih minimal satu presenter.');
+      return;
+    }
 
     let payload;
 
@@ -88,13 +112,15 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
       payload = {
         ...form,
         idPendaftar: dataPendaftar?.id || '',
-        inputBy: dataPendaftar?.cabangOffice || '',
+        inputBy: dataPendaftar?.cabangOffice || userData?.cabangOffice || '',
+        cabangOffice: dataPendaftar?.cabangOffice || userData?.cabangOffice || '',
         idGelombang,
         timestamp: new Date()
       };
     } else {
       payload = {
         ...form,
+        cabangOffice: userData?.cabangOffice || '',
         timestamp: new Date()
       };
     }
@@ -153,15 +179,60 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
               <Typography variant="body2" gutterBottom>Presenter</Typography>
               <ToggleButtonGroup
                 value={form.presenter}
-                onChange={handlePresenterChange}
+                onChange={(e, newVal) => {
+                  // Jika role presenter, bisa memilih presenter dengan cabangOffice yang sama
+                  if (userData?.role === 'presenter') {
+                    // Filter hanya presenter yang memiliki cabangOffice yang sama
+                    const validPresenters = newVal.filter(presenterName => {
+                      const presenter = presenterList.find(p => p.namaLengkap === presenterName);
+                      return presenter && presenter.alamat === userData.cabangOffice;
+                    });
+                    setForm(prev => ({ ...prev, presenter: validPresenters }));
+                  } else {
+                    // Pimpinan bisa memilih siapa saja
+                    setForm(prev => ({ ...prev, presenter: newVal }));
+                  }
+                }}
                 color="primary"
+                multiple
+                sx={{ flexWrap: 'wrap', gap: 1 }}
               >
                 {presenterList.map((p, i) => (
-                  <ToggleButton key={i} value={p} sx={{ fontSize: 12 }}>
-                    {p}
+                  <ToggleButton
+                    key={i}
+                    value={p.namaLengkap}
+                    sx={{
+                      fontSize: 12,
+                      textTransform: 'none',
+                      borderRadius: '8px',
+                      borderColor: '#1976d2',
+                      '&.Mui-selected': {
+                        backgroundColor: '#1976d2',
+                        color: '#fff',
+                      },
+                      '&:hover': {
+                        backgroundColor: '#1565c0',
+                        color: '#fff'
+                      }
+                    }}
+                  >
+                    {p.namaLengkap}
+                    {userData?.role === 'presenter' && p.namaLengkap === userData.namaLengkap &&
+                      <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>(Anda)</Typography>
+                    }
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
+              {userData?.role === 'presenter' && userData?.cabangOffice && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Menampilkan presenter dari cabang: {userData.cabangOffice} ({presenterList.length} presenter tersedia)
+                </Typography>
+              )}
+              {userData?.role === 'pimpinan' && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Menampilkan semua presenter ({presenterList.length} presenter tersedia)
+                </Typography>
+              )}
             </Box>
             <TextField label="DU Tahap 1" name="duTahap1" value={form.duTahap1} onChange={handleChange} fullWidth />
             <TextField type="date" label="Tanggal DU Tahap 1" name="tglDU1" value={form.tglDU1} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
