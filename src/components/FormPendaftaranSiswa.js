@@ -55,12 +55,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     if (editingData) {
       // Validasi permission untuk presenter saat edit
       if (userData?.role === 'presenter') {
-        const isPresenterOwner = Array.isArray(editingData.presenter)
-          ? editingData.presenter.includes(userData.namaLengkap)
-          : editingData.presenter === userData.namaLengkap;
-
-        if (!isPresenterOwner) {
-          alert('Anda tidak memiliki permission untuk mengedit data ini.');
+        // Presenter dapat mengedit data dari cabangOffice yang sama
+        if (editingData.cabangOffice !== userData.cabangOffice) {
+          alert('Anda tidak memiliki permission untuk mengedit data ini. Data ini bukan dari cabang office Anda.');
           onClose();
           return;
         }
@@ -78,9 +75,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     } else {
       // Set default presenter berdasarkan role
       let defaultPresenter = [];
-      if (userData?.role === 'presenter' && userData?.namaLengkap) {
-        defaultPresenter = [userData.namaLengkap];
-      }
+      // Tidak set default presenter untuk presenter, biarkan mereka memilih sendiri
+      // Hanya pimpinan yang tidak perlu default
 
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
@@ -109,6 +105,12 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.tglDaftar || !form.namaPendaftar || !form.jurusan) return;
+
+    // Validasi presenter harus dipilih
+    if (!form.presenter || form.presenter.length === 0) {
+      alert('Silakan pilih minimal satu presenter.');
+      return;
+    }
 
     if (editingData?.id) {
       await updateDoc(doc(db, 'pendaftaran_siswa', editingData.id), {
@@ -144,9 +146,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
     // Reset form dengan default presenter sesuai role
     let defaultPresenter = [];
-    if (userData?.role === 'presenter' && userData?.namaLengkap) {
-      defaultPresenter = [userData.namaLengkap];
-    }
+    // Tidak set default presenter, biarkan user memilih sendiri
 
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
@@ -299,14 +299,14 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <ToggleButtonGroup
                   value={form.presenter}
                   onChange={(e, newVal) => {
-                    // Jika role presenter, hanya bisa memilih dirinya sendiri
+                    // Jika role presenter, bisa memilih presenter dengan cabangOffice yang sama
                     if (userData?.role === 'presenter') {
-                      if (newVal.includes(userData.namaLengkap)) {
-                        setForm(prev => ({ ...prev, presenter: [userData.namaLengkap] }));
-                      } else {
-                        // Jika mencoba unselect dirinya sendiri, tetap pilih dirinya
-                        setForm(prev => ({ ...prev, presenter: [userData.namaLengkap] }));
-                      }
+                      // Filter hanya presenter yang memiliki cabangOffice yang sama
+                      const validPresenters = newVal.filter(presenterName => {
+                        const presenter = presenterList.find(p => p.namaLengkap === presenterName);
+                        return presenter && presenter.alamat === userData.cabangOffice;
+                      });
+                      setForm(prev => ({ ...prev, presenter: validPresenters }));
                     } else {
                       // Pimpinan bisa memilih siapa saja
                       setForm(prev => ({ ...prev, presenter: newVal }));
@@ -319,9 +319,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 >
                   {presenterList
                     .filter(p => {
-                      // Jika role presenter, hanya tampilkan dirinya sendiri
+                      // Jika role presenter, tampilkan presenter dengan cabangOffice yang sama
                       if (userData?.role === 'presenter') {
-                        return p.namaLengkap === userData.namaLengkap;
+                        return p.alamat === userData.cabangOffice;
                       }
                       // Jika role pimpinan, tampilkan semua presenter
                       return true;
@@ -354,7 +354,12 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 </ToggleButtonGroup>
                 {userData?.role === 'presenter' && (
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Sebagai presenter, Anda hanya dapat memilih diri sendiri sebagai presenter.
+                    Menampilkan presenter dari cabang: {userData.cabangOffice} ({presenterList.filter(p => p.alamat === userData.cabangOffice).length} presenter tersedia)
+                  </Typography>
+                )}
+                {userData?.role === 'pimpinan' && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Menampilkan semua presenter ({presenterList.length} presenter tersedia)
                   </Typography>
                 )}
               </Box>

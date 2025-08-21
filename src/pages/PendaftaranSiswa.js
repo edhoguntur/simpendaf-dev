@@ -84,36 +84,21 @@ const PendaftaranSiswa = () => {
           // Pimpinan dapat melihat semua data
           const snapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
           result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } else if (userData?.role === 'presenter' && userData?.namaLengkap) {
-          // Presenter hanya bisa melihat data mereka sendiri
-          // Query untuk array (menggunakan array-contains)
-          const arrayQuery = query(
-            collection(db, 'pendaftaran_siswa'),
-            where('presenter', 'array-contains', userData.namaLengkap)
-          );
+        } else if (userData?.role === 'presenter') {
+          if (userData?.cabangOffice) {
+            // Presenter hanya bisa melihat data sesuai cabangOffice mereka
+            const query1 = query(
+              collection(db, 'pendaftaran_siswa'),
+              where('cabangOffice', '==', userData.cabangOffice)
+            );
 
-          // Query untuk string (menggunakan ==)
-          const stringQuery = query(
-            collection(db, 'pendaftaran_siswa'),
-            where('presenter', '==', userData.namaLengkap)
-          );
-
-          // Ambil hasil dari kedua query
-          const [arraySnapshot, stringSnapshot] = await Promise.all([
-            getDocs(arrayQuery),
-            getDocs(stringQuery)
-          ]);
-
-          // Gabungkan hasil dan hilangkan duplikat berdasarkan id
-          const arrayResult = arraySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          const stringResult = stringSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-          const combinedResult = [...arrayResult, ...stringResult];
-          const uniqueResult = combinedResult.filter((item, index, self) =>
-            index === self.findIndex(t => t.id === item.id)
-          );
-
-          result = uniqueResult;
+            const snapshot = await getDocs(query1);
+            result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          } else {
+            // Jika presenter tidak memiliki cabangOffice, tidak tampilkan data apapun
+            console.warn('Presenter tidak memiliki cabangOffice:', userData);
+            result = [];
+          }
         } else {
           // Fallback: jika role tidak dikenali atau data user tidak lengkap
           console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
@@ -444,9 +429,21 @@ const PendaftaranSiswa = () => {
 
         <Paper>
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">
-              Data Pendaftaran Siswa
-            </Typography>
+            <Box>
+              <Typography variant="h6">
+                Data Pendaftaran Siswa
+              </Typography>
+              {userData?.role === 'presenter' && userData?.cabangOffice && (
+                <Typography variant="body2" color="primary" sx={{ mt: 0.5 }}>
+                  Filter: {userData.cabangOffice}
+                </Typography>
+              )}
+              {userData?.role === 'presenter' && !userData?.cabangOffice && (
+                <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
+                  Peringatan: Anda belum memiliki cabang office yang terdaftar
+                </Typography>
+              )}
+            </Box>
             <Typography variant="body2" color="text.secondary">
               Menampilkan {paginatedData.length} dari {filteredData.length} data
             </Typography>
