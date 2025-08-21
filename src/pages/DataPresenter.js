@@ -4,7 +4,7 @@ import {
   TableContainer, Table, TableHead, TableBody,
   TableRow, TableCell, IconButton, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, Snackbar
+  Alert, Snackbar, Chip
 } from '@mui/material';
 import { Edit, Delete, HowToReg } from '@mui/icons-material';
 import { db } from '../firebase';
@@ -48,6 +48,7 @@ const DataPresenter = () => {
   const [editingId, setEditingId] = useState(null);
   const [presenterList, setPresenterList] = useState([]);
   const [kantorList, setKantorList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
 
   // States untuk dialog create user
   const [openCreateUserDialog, setOpenCreateUserDialog] = useState(false);
@@ -70,6 +71,7 @@ const DataPresenter = () => {
   useEffect(() => {
     fetchData();
     fetchKantor();
+    fetchUsers();
   }, []);
 
   const fetchData = async () => {
@@ -82,6 +84,19 @@ const DataPresenter = () => {
     const snapshot = await getDocs(collection(db, 'kantor'));
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setKantorList(data);
+  };
+
+  const fetchUsers = async () => {
+    const snapshot = await getDocs(collection(db, 'users'));
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setUsersList(data);
+  };
+
+  // Helper function untuk mengecek apakah presenter sudah menjadi user
+  const isPresenterAlreadyUser = (presenter) => {
+    return usersList.some(user =>
+      user.email === presenter.email || user.presenterId === presenter.id
+    );
   };
 
   const handleChange = (e) => {
@@ -119,20 +134,50 @@ const DataPresenter = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Yakin ingin menghapus presenter ini?')) {
-      try {
+    try {
+      // Cari presenter yang akan dihapus
+      const presenterToDelete = presenterList.find(p => p.id === id);
+
+      if (!presenterToDelete) {
+        showSnackbar('Presenter tidak ditemukan', 'error');
+        return;
+      }
+
+      // Cek apakah presenter sudah menjadi user
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const existingUser = usersSnapshot.docs.find(doc => {
+        const userData = doc.data();
+        return userData.email === presenterToDelete.email || userData.presenterId === id;
+      });
+
+      if (existingUser) {
+        showSnackbar(
+          `Tidak dapat menghapus presenter ${presenterToDelete.namaLengkap}. Presenter ini sudah menjadi user. Hapus user terlebih dahulu.`,
+          'error'
+        );
+        return;
+      }
+
+      // Jika tidak ada user yang terkait, lanjutkan penghapusan
+      if (window.confirm(`Yakin ingin menghapus presenter ${presenterToDelete.namaLengkap}?`)) {
         await deleteDoc(doc(db, 'presenter', id));
         fetchData();
         showSnackbar('Presenter berhasil dihapus!', 'success');
-      } catch (err) {
-        console.error('Gagal hapus:', err);
-        showSnackbar('Gagal menghapus presenter', 'error');
       }
+    } catch (err) {
+      console.error('Gagal hapus:', err);
+      showSnackbar('Gagal menghapus presenter', 'error');
     }
   };
 
   // Handle create user dialog
   const handleCreateUserClick = (presenter) => {
+    // Cek apakah presenter sudah menjadi user
+    if (isPresenterAlreadyUser(presenter)) {
+      showSnackbar(`${presenter.namaLengkap} sudah menjadi user`, 'warning');
+      return;
+    }
+
     setSelectedPresenter(presenter);
     setUserPassword('');
     setOpenCreateUserDialog(true);
@@ -176,6 +221,9 @@ const DataPresenter = () => {
 
       // Sign out dari secondary auth untuk membersihkan session
       await secondaryAuth.signOut();
+
+      // Refresh data users untuk memperbarui status di tabel
+      fetchUsers();
 
       setOpenCreateUserDialog(false);
       showSnackbar(`Berhasil membuat user untuk ${selectedPresenter.namaLengkap}!`, 'success');
@@ -295,41 +343,54 @@ const DataPresenter = () => {
                   <TableCell>WA</TableCell>
                   <TableCell>Alamat</TableCell>
                   <TableCell>Email</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell align="center">Aksi</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {presenterList.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.idcode}</TableCell>
-                    <TableCell>{item.namaLengkap}</TableCell>
-                    <TableCell>{item.nomorWA}</TableCell>
-                    <TableCell>{item.alamat}</TableCell>
-                    <TableCell>{item.email}</TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        onClick={() => handleEdit(item)}
-                        title="Edit Presenter"
-                      >
-                        <Edit fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => handleDelete(item.id)}
-                        title="Hapus Presenter"
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => handleCreateUserClick(item)}
-                        title="Jadikan User"
-                        color="primary"
-                      >
-                        <HowToReg fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {presenterList.map((item, index) => {
+                  const isUser = isPresenterAlreadyUser(item);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.idcode}</TableCell>
+                      <TableCell>{item.namaLengkap}</TableCell>
+                      <TableCell>{item.nomorWA}</TableCell>
+                      <TableCell>{item.alamat}</TableCell>
+                      <TableCell>{item.email}</TableCell>
+                      <TableCell>
+                        {isUser ? (
+                          <Chip label="User" size="small" color="success" />
+                        ) : (
+                          <Chip label="Presenter" size="small" color="default" />
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={() => handleEdit(item)}
+                          title="Edit Presenter"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleDelete(item.id)}
+                          title="Hapus Presenter"
+                          disabled={isUser}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleCreateUserClick(item)}
+                          title="Jadikan User"
+                          color="primary"
+                          disabled={isUser}
+                        >
+                          <HowToReg fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
