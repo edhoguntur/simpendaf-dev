@@ -23,6 +23,7 @@ import StatistikPresenter from './pages/statistikPresenter';
 import StatistikPresenterIndividual from './pages/StatistikPresenterIndividual';
 import StatistikKantorCabang from './pages/StatistikKantorCabang';
 import RekapMahasiswaBaru from './pages/RekapMahasiswaBaru';
+import UserProfile from './pages/UserProfile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -136,6 +137,18 @@ function App() {
           <Route path="/presenter/statistik" element={
             <ProtectedRoute requiredRole="presenter">
               <StatistikPresenterIndividual />
+            </ProtectedRoute>
+          } />
+
+          {/* User Profile Routes */}
+          <Route path="/pimpinan/profile" element={
+            <ProtectedRoute requiredRole="pimpinan">
+              <UserProfile />
+            </ProtectedRoute>
+          } />
+          <Route path="/presenter/profile" element={
+            <ProtectedRoute requiredRole="presenter">
+              <UserProfile />
             </ProtectedRoute>
           } />
 
