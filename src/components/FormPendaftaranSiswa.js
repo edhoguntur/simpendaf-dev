@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import {
   Box, Button, Drawer, IconButton, TextField, Typography, MenuItem,
   ToggleButtonGroup, ToggleButton
@@ -10,10 +10,27 @@ import { AuthContext } from '../context/AuthContext';
 
 const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const { userData } = useContext(AuthContext);
+
+  // Helper fungsi untuk mengubah format mata uang
+  const parseCurrency = useCallback((value) => {
+    if (!value) return 0;
+    return parseInt(value.toString().replace(/\./g, ''));
+  }, []);
+
+  // Helper fungsi untuk format nilai mata uang
+  const formatCurrency = useCallback((value) => {
+    if (!value) return '0';
+    // Jika value sudah berformat (mengandung titik), parse dulu
+    const numericValue = typeof value === 'string' && value.includes('.')
+      ? parseCurrency(value)
+      : parseInt(value);
+    return numericValue.toLocaleString('id-ID');
+  }, [parseCurrency]);
+
   const [form, setForm] = useState({
     tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-    jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
-    caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: ''
+    jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
+    caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', totalBiayaJurusan: ''
   });
   const [jurusanList, setJurusanList] = useState([]);
   const [presenterList, setPresenterList] = useState([]);
@@ -68,7 +85,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         presenter: editingData.presenter || [],
         jenisPotongan: editingData.jenisPotongan || '',
         jumlahPotongan: editingData.jumlahPotongan || '',
-        totalBiayaPendaftaran: editingData.totalBiayaPendaftaran || editingData.biayaPendaftaran || '',
+        biayaJurusan: editingData.biayaJurusan ? formatCurrency(editingData.biayaJurusan) : '',
+        totalBiayaPendaftaran: editingData.totalBiayaPendaftaran ? formatCurrency(editingData.totalBiayaPendaftaran) : (editingData.biayaPendaftaran ? formatCurrency(editingData.biayaPendaftaran) : ''),
+        totalBiayaJurusan: editingData.totalBiayaJurusan ? formatCurrency(editingData.totalBiayaJurusan) : (editingData.biayaJurusan ? formatCurrency(editingData.biayaJurusan) : ''),
         jalurPendaftaran: editingData.jalurPendaftaran || '',
         sumberInformasi: editingData.sumberInformasi || ''
       });
@@ -80,13 +99,13 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-        jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
+        jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
         presenter: defaultPresenter,
         caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
-        totalBiayaPendaftaran: '', sumberInformasi: ''
+        totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
       });
     }
-  }, [editingData, userData, onClose]);
+  }, [editingData, userData, onClose, formatCurrency, parseCurrency]);
 
   const generateNomorPendaftaran = async (tgl) => {
     const dateStr = tgl.replace(/-/g, '');
@@ -115,6 +134,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     if (editingData?.id) {
       await updateDoc(doc(db, 'pendaftaran_siswa', editingData.id), {
         ...form,
+        biayaJurusan: parseCurrency(form.biayaJurusan).toString(),
+        totalBiayaPendaftaran: parseCurrency(form.totalBiayaPendaftaran).toString(),
+        totalBiayaJurusan: parseCurrency(form.totalBiayaJurusan).toString(),
         sumberInformasi: form.sumberInformasi,
         cabangOffice: userData?.cabangOffice || ''
       });
@@ -129,6 +151,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         email: form.email,
         asalSekolah: form.asalSekolah,
         jurusan: form.jurusan,
+        biayaJurusan: parseCurrency(form.biayaJurusan).toString(),
         biayaPendaftaran: form.biayaPendaftaran,
         noKwitansi: form.noKwitansi,
         presenter: form.presenter,
@@ -137,7 +160,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         cabangOffice: userData?.cabangOffice || '',
         jenisPotongan: form.jenisPotongan,
         jumlahPotongan: form.jumlahPotongan,
-        totalBiayaPendaftaran: form.totalBiayaPendaftaran,
+        totalBiayaPendaftaran: parseCurrency(form.totalBiayaPendaftaran).toString(),
+        totalBiayaJurusan: parseCurrency(form.totalBiayaJurusan).toString(),
         sumberInformasi: form.sumberInformasi
       });
     }
@@ -150,69 +174,68 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
-      jurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
+      jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
       presenter: defaultPresenter,
       caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
-      totalBiayaPendaftaran: '', sumberInformasi: ''
+      totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
     });
-  };
-
-  // Helper fungsi untuk mengubah format mata uang
-  const parseCurrency = (value) => {
-    if (!value) return 0;
-    return parseInt(value.toString().replace(/\./g, ''));
-  };
-
-  // Helper fungsi untuk format nilai mata uang
-  const formatCurrency = (value) => {
-    if (!value) return '0';
-    return parseInt(value).toLocaleString('id-ID');
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === 'biayaPendaftaran') {
-      const biayaPendaftaran = parseCurrency(value);
+    if (name === 'jurusan') {
+      // Cari biaya jurusan berdasarkan jurusan yang dipilih
+      const selectedJurusan = jurusanList.find(j => j.nama === value);
+      const biayaJurusan = selectedJurusan ? selectedJurusan.biaya || '0' : '0';
+
+      // Hitung ulang total biaya jurusan jika ada potongan
       const jumlahPotongan = parseCurrency(form.jumlahPotongan);
-      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
-      const total = Math.max(biayaPendaftaran - potonganValid, 0);
+      const biayaJurusanNum = parseCurrency(biayaJurusan);
+      const potonganValid = Math.min(jumlahPotongan, biayaJurusanNum);
+      const totalBiayaJurusan = Math.max(biayaJurusanNum - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
+        jurusan: value,
+        biayaJurusan: formatCurrency(biayaJurusan),
+        totalBiayaJurusan: formatCurrency(totalBiayaJurusan),
+        // Reset potongan jika jurusan berubah dan biaya baru lebih kecil dari potongan
+        jumlahPotongan: biayaJurusanNum === 0 ? '' : Math.min(jumlahPotongan, biayaJurusanNum).toString(),
+        jenisPotongan: biayaJurusanNum === 0 ? '' : prev.jenisPotongan
+      }));
+    } else if (name === 'biayaPendaftaran') {
+      // Total biaya pendaftaran = biaya pendaftaran saja (tanpa potongan)
+      setForm(prev => ({
+        ...prev,
         [name]: value,
-        jumlahPotongan: biayaPendaftaran === 0 ? '' : potonganValid.toString(),
-        jenisPotongan: biayaPendaftaran === 0 ? '' : prev.jenisPotongan,
-        totalBiayaPendaftaran: formatCurrency(total)
+        totalBiayaPendaftaran: formatCurrency(value)
       }));
     } else if (name === 'jenisPotongan') {
+      // Jenis potongan mengurangi biaya jurusan
       const selected = jenisPotonganList.find(d => d.jenisPotongan === value);
       const jumlahPotongan = selected ? parseCurrency(selected.jumlahPotongan) : 0;
-      const biayaPendaftaran = parseCurrency(form.biayaPendaftaran);
-      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
-      const total = Math.max(biayaPendaftaran - potonganValid, 0);
+      const biayaJurusan = parseCurrency(form.biayaJurusan);
+      const potonganValid = Math.min(jumlahPotongan, biayaJurusan);
+      const totalBiayaJurusan = Math.max(biayaJurusan - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
         jenisPotongan: value,
         jumlahPotongan: selected ? potonganValid.toString() : '',
-        totalBiayaPendaftaran: formatCurrency(total)
+        totalBiayaJurusan: formatCurrency(totalBiayaJurusan)
       }));
     } else if (name === 'jumlahPotongan') {
-      const biayaPendaftaran = parseCurrency(form.biayaPendaftaran);
+      // Manual input potongan mengurangi biaya jurusan
+      const biayaJurusan = parseCurrency(form.biayaJurusan);
       const jumlahPotongan = parseCurrency(value);
-      const potonganValid = Math.min(jumlahPotongan, biayaPendaftaran);
-      const total = Math.max(biayaPendaftaran - potonganValid, 0);
+      const potonganValid = Math.min(jumlahPotongan, biayaJurusan);
+      const totalBiayaJurusan = Math.max(biayaJurusan - potonganValid, 0);
 
       setForm(prev => ({
         ...prev,
         jumlahPotongan: value,
-        totalBiayaPendaftaran: formatCurrency(total)
-      }));
-    } else if (name === 'jurusan') {
-      setForm(prev => ({
-        ...prev,
-        jurusan: value
+        totalBiayaJurusan: formatCurrency(totalBiayaJurusan)
       }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
@@ -245,6 +268,14 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 ))}
               </TextField>
               <TextField
+                label="Biaya Jurusan"
+                name="biayaJurusan"
+                value={form.biayaJurusan ? `Rp ${form.biayaJurusan}` : ''}
+                fullWidth
+                disabled
+                helperText="Biaya ini akan otomatis terisi berdasarkan jurusan yang dipilih"
+              />
+              <TextField
                 select
                 label="Biaya Pendaftaran"
                 name="biayaPendaftaran"
@@ -267,7 +298,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 value={form.jenisPotongan || ''}
                 onChange={handleChange}
                 fullWidth
-                disabled={parseCurrency(form.biayaPendaftaran) === 0}
+                disabled={parseCurrency(form.biayaJurusan) === 0}
+                helperText="Potongan akan mengurangi biaya jurusan"
               >
                 <MenuItem value="">Tanpa Potongan Biaya</MenuItem>
                 {jenisPotonganList.map((d, i) => (
@@ -277,16 +309,18 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
               <TextField
                 label="Jumlah Potongan"
                 name="jumlahPotongan"
-                value={form.jumlahPotongan ? form.jumlahPotongan.toString() : ''}
+                value={form.jumlahPotongan ? `Rp ${formatCurrency(form.jumlahPotongan)}` : ''}
                 fullWidth
-                disabled={parseCurrency(form.biayaPendaftaran) === 0}
+                disabled={parseCurrency(form.biayaJurusan) === 0}
+                helperText="Potongan untuk biaya jurusan"
               />
               <TextField
                 label="Total Biaya Pendaftaran"
                 name="totalBiayaPendaftaran"
-                value={form.totalBiayaPendaftaran ? form.totalBiayaPendaftaran.toString() : ''}
+                value={form.totalBiayaPendaftaran ? `Rp ${form.totalBiayaPendaftaran}` : ''}
                 fullWidth
                 disabled
+                helperText="Hanya biaya pendaftaran (tanpa potongan)"
               />
             </Box>
 
