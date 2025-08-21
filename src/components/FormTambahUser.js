@@ -36,7 +36,6 @@ const FormTambahUser = () => {
       setForm({ email: '', namaLengkap: '', role: 'pegawai', cabangOffice: '' });
     } catch (err) {
       setError('Gagal menambahkan user.');
-      console.error(err);
     }
   };
 

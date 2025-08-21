@@ -21,7 +21,7 @@ const AuthProvider = ({ children }) => {
             setUserData(data); // data Firestore termasuk role, nama, cabang
           }
         } catch (error) {
-          console.error('Gagal ambil data user:', error);
+          // Handle error silently
         }
       } else {
         setUserData(null);

@@ -67,7 +67,7 @@ const DataJurusan = () => {
       setEditingId(null);
       fetchData();
     } catch (err) {
-      console.error('Gagal simpan:', err);
+      // Handle error silently
     }
   };
 

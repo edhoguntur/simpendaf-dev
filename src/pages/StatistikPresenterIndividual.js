@@ -69,16 +69,21 @@ const StatistikPresenterIndividual = () => {
       }));
 
       // Filter daftar ulang berdasarkan nomor pendaftaran yang ada di myPendaftaran
+      // dan hanya yang memiliki DU Tahap 1/2 dengan tanggal terisi
       const myNomorPendaftaran = myPendaftaran.map(item => item.nomorPendaftaran);
-      const myDaftarUlang = allDaftarUlang.filter(item =>
-        myNomorPendaftaran.includes(item.nomorPendaftaran)
-      );
+      const myDaftarUlang = allDaftarUlang.filter(item => {
+        const isMyStudent = myNomorPendaftaran.includes(item.nomorPendaftaran);
+        const hasDU1 = item.duTahap1 && item.tglDU1;
+        const hasDU2 = item.duTahap2 && item.tglDU2;
+
+        return isMyStudent && (hasDU1 || hasDU2);
+      });
 
       setPendaftaranData(myPendaftaran);
       setDaftarUlangData(myDaftarUlang);
 
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // Error handling sudah ditangani di UI dengan loading state
     } finally {
       setLoading(false);
     }
@@ -105,8 +110,32 @@ const StatistikPresenterIndividual = () => {
       });
     };
 
+    // Filter untuk daftar ulang dengan tanggal yang sesuai dengan DU yang valid
+    const filterDaftarUlangByDate = (data) => {
+      return data.filter(item => {
+        // Prioritas tglDU1, fallback ke tglDU2
+        let dateToUse;
+        if (item.duTahap1 && item.tglDU1) {
+          dateToUse = item.tglDU1;
+        } else if (item.duTahap2 && item.tglDU2) {
+          dateToUse = item.tglDU2;
+        } else {
+          return false; // Skip jika tidak ada tanggal DU yang valid
+        }
+
+        const date = new Date(dateToUse);
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();
+
+        const matchMonth = !selectedBulan || selectedBulan === '' || month === parseInt(selectedBulan);
+        const matchYear = !selectedTahun || selectedTahun === '' || year === parseInt(selectedTahun);
+
+        return matchMonth && matchYear;
+      });
+    };
+
     const filteredPendaftaran = filterByDate(pendaftaranData, 'tglDaftar');
-    const filteredDaftarUlang = filterByDate(daftarUlangData, 'tglDaftarUlang');
+    const filteredDaftarUlang = filterDaftarUlangByDate(daftarUlangData);
 
     // Calculate summary statistics
     const totalPendaftaran = filteredPendaftaran.length;
@@ -114,9 +143,12 @@ const StatistikPresenterIndividual = () => {
     const totalBiayaPendaftaran = filteredPendaftaran.reduce((sum, item) =>
       sum + parseCurrency(item.totalBiayaPendaftaran), 0
     );
-    const totalBiayaDaftarUlang = filteredDaftarUlang.reduce((sum, item) =>
-      sum + parseCurrency(item.totalBiaya), 0
-    );
+    const totalBiayaDaftarUlang = filteredDaftarUlang.reduce((sum, item) => {
+      let totalBiaya = 0;
+      if (item.duTahap1) totalBiaya += parseCurrency(item.duTahap1);
+      if (item.duTahap2) totalBiaya += parseCurrency(item.duTahap2);
+      return sum + totalBiaya;
+    }, 0);
 
     const summaryStats = {
       totalPendaftaran,
@@ -151,7 +183,17 @@ const StatistikPresenterIndividual = () => {
     });
 
     filteredDaftarUlang.forEach(item => {
-      const date = new Date(item.tglDaftarUlang);
+      // Gunakan tanggal yang sesuai dengan DU yang valid
+      let dateToUse;
+      if (item.duTahap1 && item.tglDU1) {
+        dateToUse = item.tglDU1;
+      } else if (item.duTahap2 && item.tglDU2) {
+        dateToUse = item.tglDU2;
+      } else {
+        return; // Skip jika tidak ada tanggal DU yang valid
+      }
+
+      const date = new Date(dateToUse);
       const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
 
       if (!breakdown[monthYear]) {
@@ -165,7 +207,13 @@ const StatistikPresenterIndividual = () => {
       }
 
       breakdown[monthYear].daftarUlang++;
-      breakdown[monthYear].biayaDaftarUlang += parseCurrency(item.totalBiaya);
+
+      // Hitung total biaya dari DU yang valid
+      let totalBiaya = 0;
+      if (item.duTahap1) totalBiaya += parseCurrency(item.duTahap1);
+      if (item.duTahap2) totalBiaya += parseCurrency(item.duTahap2);
+
+      breakdown[monthYear].biayaDaftarUlang += totalBiaya;
     });
 
     return Object.values(breakdown).sort((a, b) => {
@@ -498,16 +546,29 @@ const StatistikPresenterIndividual = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredDaftarUlang.map((item, index) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.nomorPendaftaran}</TableCell>
-                        <TableCell>{item.namaMahasiswa}</TableCell>
-                        <TableCell>{item.tglDaftarUlang}</TableCell>
-                        <TableCell align="right">
-                          Rp {parseCurrency(item.totalBiaya).toLocaleString('id-ID')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredDaftarUlang.map((item, index) => {
+                      // Tentukan tanggal dan biaya yang akan ditampilkan
+                      let displayDate, totalBiaya = 0;
+                      if (item.duTahap1 && item.tglDU1) {
+                        displayDate = item.tglDU1;
+                      } else if (item.duTahap2 && item.tglDU2) {
+                        displayDate = item.tglDU2;
+                      }
+
+                      if (item.duTahap1) totalBiaya += parseCurrency(item.duTahap1);
+                      if (item.duTahap2) totalBiaya += parseCurrency(item.duTahap2);
+
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.nomorPendaftaran}</TableCell>
+                          <TableCell>{item.namaPendaftar}</TableCell>
+                          <TableCell>{displayDate}</TableCell>
+                          <TableCell align="right">
+                            Rp {totalBiaya.toLocaleString('id-ID')}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {filteredDaftarUlang.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={4} align="center">

@@ -36,7 +36,6 @@ const TambahKantor = () => {
   const fetchKantor = async () => {
     const snapshot = await getDocs(collection(db, 'kantor'));
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log('kantorList:', data); // debug
     setKantorList(data);
   };
 
@@ -56,7 +55,7 @@ const TambahKantor = () => {
       setEditingId(null);
       fetchKantor();
     } catch (err) {
-      console.error('Gagal simpan:', err);
+      // Handle error silently
     }
   };
 

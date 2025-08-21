@@ -60,6 +60,14 @@ const PendaftaranSiswa = () => {
   };
 
   const handleDaftarUlangClick = async (item) => {
+    // Cek permission untuk presenter
+    if (userData?.role === 'presenter') {
+      if (item.cabangOffice !== userData.cabangOffice) {
+        alert('Anda hanya dapat mengisi daftar ulang untuk siswa dari cabang office Anda.');
+        return;
+      }
+    }
+
     const snapshot = await getDocs(
       query(collection(db, 'daftar_ulang'), where('idPendaftar', '==', item.id))
     );
@@ -96,12 +104,10 @@ const PendaftaranSiswa = () => {
             result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           } else {
             // Jika presenter tidak memiliki cabangOffice, tidak tampilkan data apapun
-            console.warn('Presenter tidak memiliki cabangOffice:', userData);
             result = [];
           }
         } else {
           // Fallback: jika role tidak dikenali atau data user tidak lengkap
-          console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
           setData([]);
           setDaftarUlangIds([]);
           return;
@@ -114,7 +120,6 @@ const PendaftaranSiswa = () => {
         setData(result);
         setDaftarUlangIds(daftarUlangList);
       } catch (error) {
-        console.error('Error fetching data:', error);
         alert('Gagal memuat data. Silakan coba lagi.');
       }
     };
@@ -144,52 +149,27 @@ const PendaftaranSiswa = () => {
         // Pimpinan dapat melihat semua data
         const snapshot = await getDocs(collection(db, 'pendaftaran_siswa'));
         result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      } else if (userData?.role === 'presenter' && userData?.namaLengkap) {
-        // Presenter hanya bisa melihat data mereka sendiri
-        // Query untuk array (menggunakan array-contains)
-        const arrayQuery = query(
-          collection(db, 'pendaftaran_siswa'),
-          where('presenter', 'array-contains', userData.namaLengkap)
+      } else if (userData?.role === 'presenter' && userData?.cabangOffice) {
+        // Presenter hanya bisa melihat data dari cabangOffice yang sama
+        const snapshot = await getDocs(
+          query(
+            collection(db, 'pendaftaran_siswa'),
+            where('cabangOffice', '==', userData.cabangOffice)
+          )
         );
-
-        // Query untuk string (menggunakan ==)
-        const stringQuery = query(
-          collection(db, 'pendaftaran_siswa'),
-          where('presenter', '==', userData.namaLengkap)
-        );
-
-        // Ambil hasil dari kedua query
-        const [arraySnapshot, stringSnapshot] = await Promise.all([
-          getDocs(arrayQuery),
-          getDocs(stringQuery)
-        ]);
-
-        // Gabungkan hasil dan hilangkan duplikat berdasarkan id
-        const arrayResult = arraySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const stringResult = stringSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        const combinedResult = [...arrayResult, ...stringResult];
-        const uniqueResult = combinedResult.filter((item, index, self) =>
-          index === self.findIndex(t => t.id === item.id)
-        );
-
-        result = uniqueResult;
-      } else {
-        // Fallback: jika role tidak dikenali atau data user tidak lengkap
-        console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
-        setData([]);
-        setDaftarUlangIds([]);
-        return;
-      }
-
-      // Ambil data daftar ulang
+        result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } else {
+          // Fallback: jika role tidak dikenali atau data user tidak lengkap
+          setData([]);
+          setDaftarUlangIds([]);
+          return;
+        }      // Ambil data daftar ulang
       const daftarUlangSnap = await getDocs(collection(db, 'daftar_ulang'));
       const daftarUlangList = daftarUlangSnap.docs.map(doc => doc.data().nomorPendaftaran);
 
       setData(result);
       setDaftarUlangIds(daftarUlangList);
     } catch (error) {
-      console.error('Error fetching data:', error);
       alert('Gagal memuat data. Silakan coba lagi.');
     }
   };
@@ -197,12 +177,8 @@ const PendaftaranSiswa = () => {
   const handleEdit = (row) => {
     // Cek permission untuk presenter
     if (userData?.role === 'presenter') {
-      const isPresenterOwner = Array.isArray(row.presenter)
-        ? row.presenter.includes(userData.namaLengkap)
-        : row.presenter === userData.namaLengkap;
-
-      if (!isPresenterOwner) {
-        alert('Anda hanya dapat mengedit data siswa yang Anda tangani.');
+      if (row.cabangOffice !== userData.cabangOffice) {
+        alert('Anda hanya dapat mengedit data siswa dari cabang office Anda.');
         return;
       }
     }
@@ -214,12 +190,8 @@ const PendaftaranSiswa = () => {
   const handleDelete = async (id, nomorPendaftaran, row) => {
     // Cek permission untuk presenter
     if (userData?.role === 'presenter') {
-      const isPresenterOwner = Array.isArray(row.presenter)
-        ? row.presenter.includes(userData.namaLengkap)
-        : row.presenter === userData.namaLengkap;
-
-      if (!isPresenterOwner) {
-        alert('Anda hanya dapat menghapus data siswa yang Anda tangani.');
+      if (row.cabangOffice !== userData.cabangOffice) {
+        alert('Anda hanya dapat menghapus data siswa dari cabang office Anda.');
         return;
       }
     }

@@ -84,7 +84,6 @@ const TambahUser = () => {
       setEditingId(null);
       fetchUsers();
     } catch (err) {
-      console.error('❌ Gagal simpan user:', err);
       alert('Terjadi kesalahan saat menambahkan user.');
     }
   };

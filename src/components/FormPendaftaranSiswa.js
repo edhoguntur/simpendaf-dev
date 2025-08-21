@@ -92,15 +92,11 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         sumberInformasi: editingData.sumberInformasi || ''
       });
     } else {
-      // Set default presenter berdasarkan role
-      let defaultPresenter = [];
-      // Tidak set default presenter untuk presenter, biarkan mereka memilih sendiri
-      // Hanya pimpinan yang tidak perlu default
-
+      // Inisialisasi form baru
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
         jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
-        presenter: defaultPresenter,
+        presenter: [], // Tidak ada default presenter, user harus pilih sendiri
         caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
         totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
       });
@@ -168,14 +164,11 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     fetchData();
     onClose();
 
-    // Reset form dengan default presenter sesuai role
-    let defaultPresenter = [];
-    // Tidak set default presenter, biarkan user memilih sendiri
-
+    // Reset form
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
       jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
-      presenter: defaultPresenter,
+      presenter: [], // Reset presenter kosong
       caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
       totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
     });
@@ -333,69 +326,40 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <ToggleButtonGroup
                   value={form.presenter}
                   onChange={(e, newVal) => {
-                    // Jika role presenter, bisa memilih presenter dengan cabangOffice yang sama
-                    if (userData?.role === 'presenter') {
-                      // Filter hanya presenter yang memiliki cabangOffice yang sama
-                      const validPresenters = newVal.filter(presenterName => {
-                        const presenter = presenterList.find(p => p.namaLengkap === presenterName);
-                        return presenter && presenter.alamat === userData.cabangOffice;
-                      });
-                      setForm(prev => ({ ...prev, presenter: validPresenters }));
-                    } else {
-                      // Pimpinan bisa memilih siapa saja
-                      setForm(prev => ({ ...prev, presenter: newVal }));
-                    }
+                    // Semua user bisa memilih presenter manapun
+                    setForm(prev => ({ ...prev, presenter: newVal }));
                   }}
                   multiple
                   color="primary"
                   size="small"
                   sx={{ flexWrap: 'wrap', gap: 1 }}
                 >
-                  {presenterList
-                    .filter(p => {
-                      // Jika role presenter, tampilkan presenter dengan cabangOffice yang sama
-                      if (userData?.role === 'presenter') {
-                        return p.alamat === userData.cabangOffice;
-                      }
-                      // Jika role pimpinan, tampilkan semua presenter
-                      return true;
-                    })
-                    .map((p, i) => (
-                      <ToggleButton
-                        key={i}
-                        value={p.namaLengkap}
-                        selected={form.presenter.includes(p.namaLengkap)}
-                        sx={{
-                          textTransform: 'none',
-                          borderRadius: '8px',
-                          borderColor: '#1976d2',
-                          '&.Mui-selected': {
-                            backgroundColor: '#1976d2',
-                            color: '#fff',
-                          },
-                          '&:hover': {
-                            backgroundColor: '#1565c0',
-                            color: '#fff'
-                          }
-                        }}
-                      >
-                        {p.namaLengkap}
-                        {userData?.role === 'presenter' && p.namaLengkap === userData.namaLengkap &&
-                          <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>(Anda)</Typography>
+                  {presenterList.map((p, i) => (
+                    <ToggleButton
+                      key={i}
+                      value={p.namaLengkap}
+                      selected={form.presenter.includes(p.namaLengkap)}
+                      sx={{
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                        borderColor: '#1976d2',
+                        '&.Mui-selected': {
+                          backgroundColor: '#1976d2',
+                          color: '#fff',
+                        },
+                        '&:hover': {
+                          backgroundColor: '#1565c0',
+                          color: '#fff'
                         }
-                      </ToggleButton>
-                    ))}
+                      }}
+                    >
+                      {p.namaLengkap}
+                    </ToggleButton>
+                  ))}
                 </ToggleButtonGroup>
-                {userData?.role === 'presenter' && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Menampilkan presenter dari cabang: {userData.cabangOffice} ({presenterList.filter(p => p.alamat === userData.cabangOffice).length} presenter tersedia)
-                  </Typography>
-                )}
-                {userData?.role === 'pimpinan' && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Menampilkan semua presenter ({presenterList.length} presenter tersedia)
-                  </Typography>
-                )}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Menampilkan semua presenter ({presenterList.length} presenter tersedia)
+                </Typography>
               </Box>
 
               <TextField select label="Cara Daftar" name="caraDaftar" value={form.caraDaftar} onChange={handleChange} fullWidth>

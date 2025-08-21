@@ -41,11 +41,24 @@ const DaftarUlangSiswa = () => {
 
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Helper fungsi untuk format currency (konsisten dengan komponen lain)
+  const formatCurrency = useCallback((value) => {
+    if (!value) return '-';
+    const numericValue = typeof value === 'string' && value.includes('.')
+      ? parseInt(value.replace(/\./g, ''))
+      : parseInt(value);
+    return numericValue.toLocaleString('id-ID');
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!userData) return;
 
     try {
+      setLoading(true);
+      setError(null);
       let result = [];
 
       if (userData?.role === 'pimpinan') {
@@ -64,21 +77,20 @@ const DaftarUlangSiswa = () => {
           result = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } else {
           // Jika presenter tidak memiliki cabangOffice, tidak tampilkan data apapun
-          console.warn('Presenter tidak memiliki cabangOffice:', userData);
           result = [];
         }
       } else {
         // Fallback: jika role tidak dikenali atau data user tidak lengkap
-        console.warn('User role tidak dikenali atau data tidak lengkap:', userData);
         setData([]);
         return;
       }
 
-      console.log('Fetched data:', result);
       setData(result);
     } catch (error) {
-      console.error('Error fetching daftar ulang data:', error);
-      alert('Gagal memuat data daftar ulang. Silakan coba lagi.');
+      setError('Gagal memuat data daftar ulang');
+      setError('Gagal memuat data daftar ulang. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
     }
   }, [userData]);
 
@@ -96,8 +108,13 @@ const DaftarUlangSiswa = () => {
   const handleDelete = async (id) => {
     const confirm = window.confirm('Yakin ingin menghapus data ini?');
     if (!confirm) return;
-    await deleteDoc(doc(db, 'daftar_ulang', id));
-    fetchData();
+
+    try {
+      await deleteDoc(doc(db, 'daftar_ulang', id));
+      await fetchData(); // Refresh data setelah delete
+    } catch (error) {
+      alert('Gagal menghapus data. Silakan coba lagi.');
+    }
   };
 
   const handleExport = async () => {
@@ -122,9 +139,9 @@ const DaftarUlangSiswa = () => {
       'Jurusan': item.jurusan || '',
       'Ukuran Kaos': item.ukuranKaos || '',
       'Presenter': Array.isArray(item.presenter) ? item.presenter.join(', ') : (item.presenter || ''),
-      'DU Tahap 1': item.duTahap1 || '',
+      'DU Tahap 1': item.duTahap1 ? formatCurrency(item.duTahap1) : '',
       'Tanggal DU 1': item.tglDU1 || '',
-      'DU Tahap 2': item.duTahap2 || '',
+      'DU Tahap 2': item.duTahap2 ? formatCurrency(item.duTahap2) : '',
       'Tanggal DU 2': item.tglDU2 || '',
       'Cara Daftar': item.caraDaftar || '',
       'Cabang Office': item.inputBy || item.cabangOffice || '',
@@ -175,6 +192,12 @@ const DaftarUlangSiswa = () => {
     <Box>
       {userData?.role === 'pimpinan' ? <HeaderPimpinan /> : <HeaderPresenter />}
       <Box sx={{ p: 4 }}>
+        {error && (
+          <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+            <Typography variant="body1">{error}</Typography>
+          </Paper>
+        )}
+
         <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button variant="outlined" onClick={handleExport}>
             📤 EXPORT EXCEL
@@ -268,36 +291,54 @@ const DaftarUlangSiswa = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedData.map((item, index) => (
-                <TableRow key={item.id}>
-                  <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                  <TableCell>{item.nomorPendaftaran}</TableCell>
-                  <TableCell>{item.namaPendaftar}</TableCell>
-                  <TableCell>{item.nomorWA}</TableCell>
-                  <TableCell>{item.asalSekolah}</TableCell>
-                  <TableCell>{item.duTahap1}</TableCell>
-                  <TableCell>{item.tglDU1}</TableCell>
-                  <TableCell>{item.duTahap2}</TableCell>
-                  <TableCell>{item.tglDU2}</TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Edit Data">
-                      <IconButton onClick={() => { setEditingData(item); setOpenDrawer(true); }}>
-                        <Edit fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Lihat Detail">
-                      <IconButton onClick={() => { setSelectedDetail(item); setOpenDetail(true); }}>
-                        <Visibility fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Hapus">
-                      <IconButton onClick={() => handleDelete(item.id)}>
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      Memuat data...
+                    </Typography>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : paginatedData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      {filteredData.length === 0 ? 'Tidak ada data daftar ulang' : 'Tidak ada data yang sesuai filter'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedData.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                    <TableCell>{item.nomorPendaftaran}</TableCell>
+                    <TableCell>{item.namaPendaftar}</TableCell>
+                    <TableCell>{item.nomorWA}</TableCell>
+                    <TableCell>{item.asalSekolah}</TableCell>
+                    <TableCell>{item.duTahap1 ? `Rp ${formatCurrency(item.duTahap1)}` : '-'}</TableCell>
+                    <TableCell>{item.tglDU1}</TableCell>
+                    <TableCell>{item.duTahap2 ? `Rp ${formatCurrency(item.duTahap2)}` : '-'}</TableCell>
+                    <TableCell>{item.tglDU2}</TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Edit Data">
+                        <IconButton onClick={() => { setEditingData(item); setOpenDrawer(true); }}>
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Lihat Detail">
+                        <IconButton onClick={() => { setSelectedDetail(item); setOpenDetail(true); }}>
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Hapus">
+                        <IconButton onClick={() => handleDelete(item.id)}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>

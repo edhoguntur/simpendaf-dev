@@ -53,7 +53,7 @@ const MetodeBayar = () => {
       setEditingId(null);
       fetchData();
     } catch (err) {
-      console.error('Gagal simpan metode:', err);
+      // Handle error silently
     }
   };
 

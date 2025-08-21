@@ -40,7 +40,6 @@ const LoginPresenter = () => {
 
       navigate('/presenter/dashboard');
     } catch (err) {
-      console.error(err);
       setError('Login gagal. Periksa kembali email dan password Anda.');
     }
   };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import {
   Box, Typography, TextField, MenuItem, Button, Drawer,
   ToggleButton, ToggleButtonGroup, IconButton
@@ -10,6 +10,13 @@ import { AuthContext } from '../context/AuthContext';
 
 const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftarUlang }) => {
   const { userData } = useContext(AuthContext);
+
+  // Helper fungsi untuk currency formatting (konsisten dengan FormPendaftaranSiswa)
+  const parseCurrency = useCallback((value) => {
+    if (!value) return 0;
+    return parseInt(value.toString().replace(/\./g, ''));
+  }, []);
+
   const [form, setForm] = useState({
     nomorPendaftaran: '',
     namaPendaftar: '',
@@ -61,17 +68,7 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
     }
 
     getDocs(collection(db, 'presenter')).then(snapshot => {
-      const allPresenters = snapshot.docs.map(doc => doc.data());
-      let filteredPresenters = allPresenters;
-
-      // Filter presenter berdasarkan role user
-      if (userData?.role === 'presenter' && userData?.cabangOffice) {
-        // Presenter hanya bisa melihat presenter dari cabangOffice yang sama
-        filteredPresenters = allPresenters.filter(p => p.alamat === userData.cabangOffice);
-      }
-      // Pimpinan bisa melihat semua presenter (tidak perlu filter)
-
-      setPresenterList(filteredPresenters);
+      setPresenterList(snapshot.docs.map(doc => doc.data()));
     });
 
     getDocs(collection(db, 'gelombang')).then(snapshot => {
@@ -82,6 +79,7 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'duTahap1' || name === 'duTahap2') {
+      // Format currency untuk field biaya DU
       const raw = value.replace(/\D/g, '');
       const formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
       setForm(prev => ({ ...prev, [name]: formatted }));
@@ -111,6 +109,9 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
 
       payload = {
         ...form,
+        // Simpan biaya DU sebagai number untuk konsistensi database
+        duTahap1: form.duTahap1 ? parseCurrency(form.duTahap1).toString() : '',
+        duTahap2: form.duTahap2 ? parseCurrency(form.duTahap2).toString() : '',
         idPendaftar: dataPendaftar?.id || '',
         inputBy: dataPendaftar?.cabangOffice || userData?.cabangOffice || '',
         cabangOffice: dataPendaftar?.cabangOffice || userData?.cabangOffice || '',
@@ -120,6 +121,9 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
     } else {
       payload = {
         ...form,
+        // Simpan biaya DU sebagai number untuk konsistensi database
+        duTahap1: form.duTahap1 ? parseCurrency(form.duTahap1).toString() : '',
+        duTahap2: form.duTahap2 ? parseCurrency(form.duTahap2).toString() : '',
         cabangOffice: userData?.cabangOffice || '',
         timestamp: new Date()
       };
@@ -175,74 +179,70 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
               <MenuItem value="XL">XL</MenuItem>
               <MenuItem value="XXL">XXL</MenuItem>
             </TextField>
-            <Box>
-              <Typography variant="body2" gutterBottom>Presenter</Typography>
-              <ToggleButtonGroup
-                value={form.presenter}
-                onChange={(e, newVal) => {
-                  // Jika role presenter, bisa memilih presenter dengan cabangOffice yang sama
-                  if (userData?.role === 'presenter') {
-                    // Filter hanya presenter yang memiliki cabangOffice yang sama
-                    const validPresenters = newVal.filter(presenterName => {
-                      const presenter = presenterList.find(p => p.namaLengkap === presenterName);
-                      return presenter && presenter.alamat === userData.cabangOffice;
-                    });
-                    setForm(prev => ({ ...prev, presenter: validPresenters }));
-                  } else {
-                    // Pimpinan bisa memilih siapa saja
-                    setForm(prev => ({ ...prev, presenter: newVal }));
-                  }
-                }}
-                color="primary"
-                multiple
-                sx={{ flexWrap: 'wrap', gap: 1 }}
-              >
-                {presenterList.map((p, i) => (
-                  <ToggleButton
-                    key={i}
-                    value={p.namaLengkap}
-                    sx={{
-                      fontSize: 12,
-                      textTransform: 'none',
-                      borderRadius: '8px',
-                      borderColor: '#1976d2',
-                      '&.Mui-selected': {
-                        backgroundColor: '#1976d2',
-                        color: '#fff',
-                      },
-                      '&:hover': {
-                        backgroundColor: '#1565c0',
-                        color: '#fff'
-                      }
-                    }}
-                  >
-                    {p.namaLengkap}
-                    {userData?.role === 'presenter' && p.namaLengkap === userData.namaLengkap &&
-                      <Typography variant="caption" sx={{ ml: 1, opacity: 0.7 }}>(Anda)</Typography>
-                    }
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-              {userData?.role === 'presenter' && userData?.cabangOffice && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Menampilkan presenter dari cabang: {userData.cabangOffice} ({presenterList.length} presenter tersedia)
-                </Typography>
-              )}
-              {userData?.role === 'pimpinan' && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Menampilkan semua presenter ({presenterList.length} presenter tersedia)
-                </Typography>
-              )}
-            </Box>
-            <TextField label="DU Tahap 1" name="duTahap1" value={form.duTahap1} onChange={handleChange} fullWidth />
+            <TextField
+              label="DU Tahap 1"
+              name="duTahap1"
+              value={form.duTahap1}
+              onChange={handleChange}
+              fullWidth
+              helperText="Format: 100.000"
+            />
             <TextField type="date" label="Tanggal DU Tahap 1" name="tglDU1" value={form.tglDU1} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
-            <TextField label="DU Tahap 2" name="duTahap2" value={form.duTahap2} onChange={handleChange} fullWidth />
+            <TextField
+              label="DU Tahap 2"
+              name="duTahap2"
+              value={form.duTahap2}
+              onChange={handleChange}
+              fullWidth
+              helperText="Format: 100.000"
+            />
             <TextField type="date" label="Tanggal DU Tahap 2" name="tglDU2" value={form.tglDU2} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
             <TextField select label="Cara Daftar" name="caraDaftar" value={form.caraDaftar} onChange={handleChange} fullWidth>
               <MenuItem value="CASH">CASH</MenuItem>
               <MenuItem value="TF">TF</MenuItem>
               <MenuItem value="CICIL">CICIL</MenuItem>
             </TextField>
+          </Box>
+
+          {/* Section Pilih Presenter - Terpisah di bawah */}
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>Pilih Presenter</Typography>
+            <ToggleButtonGroup
+              value={form.presenter}
+              onChange={(e, newVal) => {
+                // Semua user bisa memilih presenter manapun
+                setForm(prev => ({ ...prev, presenter: newVal }));
+              }}
+              color="primary"
+              multiple
+              sx={{ flexWrap: 'wrap', gap: 1 }}
+            >
+              {presenterList.map((p, i) => (
+                <ToggleButton
+                  key={i}
+                  value={p.namaLengkap}
+                  sx={{
+                    fontSize: 12,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    borderColor: '#1976d2',
+                    '&.Mui-selected': {
+                      backgroundColor: '#1976d2',
+                      color: '#fff',
+                    },
+                    '&:hover': {
+                      backgroundColor: '#1565c0',
+                      color: '#fff'
+                    }
+                  }}
+                >
+                  {p.namaLengkap}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Menampilkan semua presenter ({presenterList.length} presenter tersedia)
+            </Typography>
           </Box>
 
           <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>

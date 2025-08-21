@@ -41,8 +41,7 @@ const LoginPimpinan = () => {
 
       navigate('/pimpinan/dashboard');
     } catch (err) {
-      console.error(err);
-      setError('Login gagal. Periksa kembali email dan password Anda.');
+      setError('Email atau password salah');
     }
   };
 
@@ -63,7 +62,6 @@ const LoginPimpinan = () => {
 
       navigate('/pimpinan/dashboard');
     } catch (err) {
-      console.error(err);
       setError('Login Google gagal.');
     }
   };

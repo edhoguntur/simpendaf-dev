@@ -113,7 +113,7 @@ const StatistikKantorCabang = () => {
         processKantorStatistics(kantorData, presenterList, pendaftaranList);
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        // Handle error silently
       } finally {
         setLoading(false);
       }

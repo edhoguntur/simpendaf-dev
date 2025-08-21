@@ -84,7 +84,7 @@ const RekapMahasiswaBaru = () => {
         processRekapData(pendaftaranList, jurusanData);
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        // Handle error silently
       } finally {
         setLoading(false);
       }

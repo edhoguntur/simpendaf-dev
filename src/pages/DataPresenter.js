@@ -117,7 +117,6 @@ const DataPresenter = () => {
       fetchData();
       showSnackbar('Data presenter berhasil disimpan!', 'success');
     } catch (err) {
-      console.error('Gagal simpan:', err);
       showSnackbar('Gagal menyimpan data presenter', 'error');
     }
   };
@@ -165,7 +164,6 @@ const DataPresenter = () => {
         showSnackbar('Presenter berhasil dihapus!', 'success');
       }
     } catch (err) {
-      console.error('Gagal hapus:', err);
       showSnackbar('Gagal menghapus presenter', 'error');
     }
   };
@@ -229,7 +227,6 @@ const DataPresenter = () => {
       showSnackbar(`Berhasil membuat user untuk ${selectedPresenter.namaLengkap}!`, 'success');
 
     } catch (error) {
-      console.error('Error creating user:', error);
       let errorMessage = 'Gagal membuat user';
 
       if (error.code === 'auth/email-already-in-use') {
