@@ -2,7 +2,6 @@ import React, { useContext } from 'react';
 import { Box, Typography, Grid, Card, CardContent } from '@mui/material';
 import { AuthContext } from '../context/AuthContext';
 import HeaderPresenter from '../components/HeaderPresenter';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import SchoolIcon from '@mui/icons-material/School';
 import { Article } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -23,12 +22,6 @@ const PresenterDashboard = () => {
       description: 'Kelola daftar ulang mahasiswa lama',
       icon: <Article fontSize="large" color="primary" />,
       path: '/presenter/daftar-ulang'
-    },
-    {
-      title: 'Data Pendaftaran',
-      description: 'Lihat data pendaftaran siswa',
-      icon: <AssignmentIcon fontSize="large" color="primary" />,
-      path: '/presenter/pendaftaran-siswa'
     }
   ];
 
