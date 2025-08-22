@@ -128,7 +128,7 @@ const TambahPotonganBiaya = () => {
                   <MenuItem disabled>Tidak ada kantor tersedia</MenuItem>
                 ) : (
                   kantorList.map((kantor) => (
-                    <MenuItem key={kantor.id} value={kantor.id}>
+                    <MenuItem key={kantor.id} value={kantor.namaKantor}>
                       {kantor.namaKantor}
                     </MenuItem>
                   ))
@@ -173,11 +173,11 @@ const TambahPotonganBiaya = () => {
               </TableHead>
               <TableBody>
                 {jenisPotonganList.map((item, index) => {
-                  const kantor = kantorList.find(k => k.id === item.cabangOffice);
+                  // cabangOffice sekarang menyimpan nama kantor langsung
                   return (
                     <TableRow key={item.id}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{kantor ? kantor.namaKantor : 'Belum dipilih'}</TableCell>
+                      <TableCell>{item.cabangOffice || 'Belum dipilih'}</TableCell>
                       <TableCell>{item.jenisPotongan}</TableCell>
                       <TableCell>{item.jumlahPotongan}</TableCell>
                       <TableCell align="center">

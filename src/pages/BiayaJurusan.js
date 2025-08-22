@@ -109,9 +109,9 @@ const BiayaJurusan = () => {
     return jurusan ? `${jurusan.kode} - ${jurusan.nama}` : 'Tidak ditemukan';
   };
 
-  const getKantorName = (kantorId) => {
-    const kantor = kantorList.find(k => k.id === kantorId);
-    return kantor ? kantor.namaKantor : 'Tidak ditemukan';
+  const getKantorName = (kantorValue) => {
+    // Karena sekarang cabangOffice menyimpan nama kantor (value), langsung return
+    return kantorValue || 'Tidak ditemukan';
   };
 
   if (loading) return <p>Loading...</p>;
@@ -134,7 +134,7 @@ const BiayaJurusan = () => {
                 onChange={handleChange}
               >
                 {kantorList.map((kantor) => (
-                  <MenuItem key={kantor.id} value={kantor.id}>
+                  <MenuItem key={kantor.id} value={kantor.namaKantor}>
                     {kantor.namaKantor}
                   </MenuItem>
                 ))}
