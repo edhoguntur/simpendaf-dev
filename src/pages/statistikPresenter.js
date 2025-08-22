@@ -241,12 +241,6 @@ const StatistikPresenter = () => {
     return getFilteredData().reduce((total, presenter) => total + presenter.totalDaftarUlang, 0);
   };
 
-  const getKonversiRate = () => {
-    const totalPendaftaran = getTotalPendaftaran();
-    const totalDaftarUlang = getTotalDaftarUlang();
-    return totalPendaftaran > 0 ? ((totalDaftarUlang / totalPendaftaran) * 100).toFixed(1) : 0;
-  };
-
   const getMonthName = (month) => {
     const monthNames = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -355,7 +349,7 @@ const StatistikPresenter = () => {
 
         {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={2.4}>
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
@@ -367,7 +361,7 @@ const StatistikPresenter = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={2.4}>
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
@@ -379,7 +373,7 @@ const StatistikPresenter = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={2.4}>
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
@@ -391,7 +385,7 @@ const StatistikPresenter = () => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} md={2.4}>
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography color="textSecondary" gutterBottom>
@@ -399,18 +393,6 @@ const StatistikPresenter = () => {
                 </Typography>
                 <Typography variant="h4">
                   {getTotalDaftarUlang()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={2.4}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  Konversi Rate
-                </Typography>
-                <Typography variant="h4">
-                  {getKonversiRate()}%
                 </Typography>
               </CardContent>
             </Card>
@@ -492,10 +474,6 @@ const StatistikPresenter = () => {
                   .sort((a, b) => b.totalPendaftaran - a.totalPendaftaran)
                   .slice(0, 5)
                   .map((presenter, index) => {
-                    const konversiRate = presenter.totalPendaftaran > 0
-                      ? ((presenter.totalDaftarUlang / presenter.totalPendaftaran) * 100).toFixed(1)
-                      : 0;
-
                     return (
                       <Box key={index} sx={{
                         p: 2,
@@ -531,14 +509,6 @@ const StatistikPresenter = () => {
                               Daftar Ulang
                             </Typography>
                           </Box>
-                          <Box sx={{ textAlign: 'center', flex: 1 }}>
-                            <Typography variant="h6" color="warning.main" sx={{ fontWeight: 'bold' }}>
-                              {konversiRate}%
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Konversi
-                            </Typography>
-                          </Box>
                         </Box>
                       </Box>
                     );
@@ -567,17 +537,12 @@ const StatistikPresenter = () => {
                   <TableCell>Alamat/Kantor</TableCell>
                   <TableCell align="center">Total Pendaftaran</TableCell>
                   <TableCell align="center">Total Daftar Ulang</TableCell>
-                  <TableCell align="center">Konversi (%)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {getFilteredData()
                   .sort((a, b) => b.totalPendaftaran - a.totalPendaftaran)
                   .map((presenter, index) => {
-                    const konversiRate = presenter.totalPendaftaran > 0
-                      ? ((presenter.totalDaftarUlang / presenter.totalPendaftaran) * 100).toFixed(1)
-                      : 0;
-
                     return (
                       <TableRow key={index}>
                         <TableCell>{index + 1}</TableCell>
@@ -585,7 +550,6 @@ const StatistikPresenter = () => {
                         <TableCell>{presenter.alamat}</TableCell>
                         <TableCell align="center">{presenter.totalPendaftaran}</TableCell>
                         <TableCell align="center">{presenter.totalDaftarUlang}</TableCell>
-                        <TableCell align="center">{konversiRate}%</TableCell>
                       </TableRow>
                     );
                   })}
