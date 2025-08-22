@@ -154,6 +154,7 @@ const TambahUser = () => {
             >
               <MenuItem value="pegawai">Pegawai</MenuItem>
               <MenuItem value="pimpinan">Pimpinan Cabang</MenuItem>
+              <MenuItem value="presenter">Presenter</MenuItem>
             </TextField>
 
             <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
