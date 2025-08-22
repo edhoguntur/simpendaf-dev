@@ -8,16 +8,25 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'fireb
 import { db } from '../firebase';
 import { AuthContext } from '../context/AuthContext';
 
+/**
+ * Komponen Form Pendaftaran Siswa
+ * Digunakan untuk mengelola form pendaftaran siswa baru dengan validasi dan filtering berdasarkan role user
+ * @param {boolean} open - Status drawer terbuka/tertutup
+ * @param {function} onClose - Callback untuk menutup drawer
+ * @param {function} fetchData - Callback untuk refresh data setelah submit
+ * @param {object} editingData - Data siswa yang sedang diedit (optional)
+ */
 const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const { userData } = useContext(AuthContext);
 
-  // Helper fungsi untuk mengubah format mata uang
+  // ===================== HELPER FUNCTIONS =====================
+  // Helper fungsi untuk mengubah format mata uang Indonesia ke angka
   const parseCurrency = useCallback((value) => {
     if (!value) return 0;
     return parseInt(value.toString().replace(/\./g, ''));
   }, []);
 
-  // Helper fungsi untuk format nilai mata uang
+  // Helper fungsi untuk format nilai mata uang ke format Indonesia (1.000.000)
   const formatCurrency = useCallback((value) => {
     if (!value) return '0';
     // Jika value sudah berformat (mengandung titik), parse dulu
@@ -27,11 +36,15 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     return numericValue.toLocaleString('id-ID');
   }, [parseCurrency]);
 
+  // ===================== STATE MANAGEMENT =====================
+  // State untuk form data dengan default values
   const [form, setForm] = useState({
     tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
     jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '', presenter: [],
-    caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
+    caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '', totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: '', kantorCabang: ''
   });
+
+  // State untuk menyimpan data master dari Firebase
   const [biayaJurusanList, setBiayaJurusanList] = useState([]);
   const [jurusanMasterList, setJurusanMasterList] = useState([]);
   const [kantorList, setKantorList] = useState([]);
@@ -43,62 +56,80 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   const [jalurList, setJalurList] = useState([]);
   const [biayaList, setBiayaList] = useState([]);
 
+  // ===================== DATA FETCHING =====================
+  // Fetch semua data master dari Firebase secara parallel untuk performance yang lebih baik
   useEffect(() => {
-    // Ambil data biaya jurusan berdasarkan cabang office
-    getDocs(collection(db, 'biaya_jurusan')).then(snapshot => {
-      setBiayaJurusanList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    const fetchAllData = async () => {
+      try {
+        // Jalankan semua query Firebase secara parallel untuk meningkatkan performance
+        const [
+          biayaJurusanSnapshot,
+          jurusanMasterSnapshot,
+          kantorSnapshot,
+          presenterSnapshot,
+          gelombangSnapshot,
+          potonganBiayaSnapshot,
+          sumberInformasiSnapshot,
+          metodeBayarSnapshot,
+          jalurPendaftaranSnapshot,
+          biayaPendaftaranSnapshot
+        ] = await Promise.all([
+          getDocs(collection(db, 'biaya_jurusan')),
+          getDocs(collection(db, 'daftar_jurusan')),
+          getDocs(collection(db, 'kantor')),
+          getDocs(collection(db, 'presenter')),
+          getDocs(collection(db, 'gelombang')),
+          getDocs(collection(db, 'potongan_biaya')),
+          getDocs(collection(db, 'sumber_informasi')),
+          getDocs(collection(db, 'metode_bayar')),
+          getDocs(collection(db, 'jalur_pendaftaran')),
+          getDocs(collection(db, 'biaya_pendaftaran'))
+        ]);
 
-    // Ambil data master jurusan
-    getDocs(collection(db, 'daftar_jurusan')).then(snapshot => {
-      setJurusanMasterList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+        // Set state dengan data yang telah diambil
+        setBiayaJurusanList(biayaJurusanSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setJurusanMasterList(jurusanMasterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setKantorList(kantorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setPresenterList(presenterSnapshot.docs.map(doc => doc.data()));
+        setGelombangList(gelombangSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setJenisPotonganList(potonganBiayaSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setSumberList(sumberInformasiSnapshot.docs.map(doc => doc.data()));
+        setMetodeList(metodeBayarSnapshot.docs.map(doc => doc.data()));
+        setJalurList(jalurPendaftaranSnapshot.docs.map(doc => doc.data()));
+        setBiayaList(biayaPendaftaranSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        alert('Terjadi kesalahan saat memuat data. Silakan refresh halaman.');
+      }
+    };
 
-    // Ambil data kantor untuk mendapatkan nama cabang office
-    getDocs(collection(db, 'kantor')).then(snapshot => {
-      setKantorList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    getDocs(collection(db, 'presenter')).then(snapshot => {
-      setPresenterList(snapshot.docs.map(doc => doc.data()));
-    });
-    getDocs(collection(db, 'gelombang')).then(snapshot => {
-      setGelombangList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    getDocs(collection(db, 'potongan_biaya')).then(snapshot => {
-      setJenisPotonganList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    getDocs(collection(db, 'sumber_informasi')).then(snapshot => {
-      setSumberList(snapshot.docs.map(doc => doc.data()));
-    });
-    getDocs(collection(db, 'metode_bayar')).then(snapshot => {
-      setMetodeList(snapshot.docs.map(doc => doc.data()));
-    });
-    getDocs(collection(db, 'jalur_pendaftaran')).then(snapshot => {
-      setJalurList(snapshot.docs.map(doc => doc.data()));
-    });
-    getDocs(collection(db, 'biaya_pendaftaran')).then(snapshot => {
-      setBiayaList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    fetchAllData();
   }, []);
 
-  // Fungsi untuk mendapatkan list jurusan yang tersedia berdasarkan cabangOffice user
-  const getAvailableJurusan = useCallback(() => {
+  // ===================== FILTER FUNCTIONS =====================
+  /**
+   * Mendapatkan list jurusan yang tersedia berdasarkan cabangOffice user atau kantor cabang yang dipilih
+   * Filter berdasarkan role user: presenter hanya melihat jurusan untuk cabangOffice mereka
+   * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @returns {Array} List jurusan yang sudah difilter dengan format display
+   */
+  const getAvailableJurusan = useCallback((selectedKantorCabang = null) => {
     if (!biayaJurusanList.length || !jurusanMasterList.length || !kantorList.length) return [];
 
-    // Filter biaya jurusan berdasarkan cabang office user
+    // Filter biaya jurusan berdasarkan cabang office yang dipilih
     let filteredBiayaJurusan = biayaJurusanList;
 
-    // Jika user adalah presenter, hanya tampilkan jurusan untuk cabangOffice yang sama
-    if (userData?.role === 'presenter' && userData?.cabangOffice) {
-      // cabangOffice sekarang menyimpan nama kantor langsung (value), bukan ID
-      filteredBiayaJurusan = biayaJurusanList.filter(bj => bj.cabangOffice === userData.cabangOffice);
+    // Tentukan kantorCabang yang akan digunakan untuk filtering
+    const kantorCabangForFiltering = selectedKantorCabang || form.kantorCabang || userData?.cabangOffice;
+
+    // Filter berdasarkan kantor cabang yang dipilih/default
+    if (kantorCabangForFiltering) {
+      filteredBiayaJurusan = biayaJurusanList.filter(bj => bj.cabangOffice === kantorCabangForFiltering);
     }
 
-    // Gabungkan dengan data master jurusan dan kantor untuk mendapatkan kode, nama, dan cabang office
+    // Gabungkan dengan data master jurusan untuk mendapatkan kode dan nama
     return filteredBiayaJurusan.map(biayaJurusan => {
       const masterJurusan = jurusanMasterList.find(jm => jm.id === biayaJurusan.jurusanId);
-      // cabangOffice sudah berisi nama kantor langsung
       const namaKantor = biayaJurusan.cabangOffice || 'Kantor tidak ditemukan';
 
       return {
@@ -110,16 +141,18 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
           ? `${masterJurusan.kode} - ${masterJurusan.nama} - ${namaKantor}`
           : 'Data tidak lengkap'
       };
-    });
-  }, [biayaJurusanList, jurusanMasterList, kantorList, userData]);
+    }).filter(item => item.kode && item.nama); // Filter out incomplete data
+  }, [biayaJurusanList, jurusanMasterList, kantorList, userData, form.kantorCabang]);
 
-  // Fungsi untuk mendapatkan biaya pendaftaran yang tersedia berdasarkan cabangOffice user
+  /**
+   * Mendapatkan biaya pendaftaran yang tersedia berdasarkan role dan cabangOffice user
+   * @returns {Array} List biaya pendaftaran yang sudah difilter
+   */
   const getAvailableBiayaPendaftaran = useCallback(() => {
     if (!biayaList.length) return [];
 
     // Jika user adalah presenter, hanya tampilkan biaya pendaftaran untuk cabangOffice yang sama
     if (userData?.role === 'presenter' && userData?.cabangOffice) {
-      // cabangOffice sekarang menyimpan nama kantor langsung (value), bukan ID
       return biayaList.filter(b => b.cabangOffice === userData.cabangOffice);
     }
 
@@ -127,13 +160,15 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     return biayaList;
   }, [biayaList, userData]);
 
-  // Fungsi untuk mendapatkan potongan biaya yang tersedia berdasarkan cabangOffice user
+  /**
+   * Mendapatkan potongan biaya yang tersedia berdasarkan role dan cabangOffice user
+   * @returns {Array} List potongan biaya yang sudah difilter
+   */
   const getAvailablePotonganBiaya = useCallback(() => {
     if (!jenisPotonganList.length) return [];
 
     // Jika user adalah presenter, hanya tampilkan potongan biaya untuk cabangOffice yang sama
     if (userData?.role === 'presenter' && userData?.cabangOffice) {
-      // cabangOffice sekarang menyimpan nama kantor langsung (value), bukan ID
       return jenisPotonganList.filter(p => p.cabangOffice === userData.cabangOffice);
     }
 
@@ -141,6 +176,29 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     return jenisPotonganList;
   }, [jenisPotonganList, userData]);
 
+  /**
+   * Mendapatkan list kantor cabang yang tersedia berdasarkan role user
+   * Role pimpinan dapat melihat semua kantor, presenter hanya kantor mereka sendiri
+   * @returns {Array} List kantor cabang yang sudah difilter
+   */
+  const getAvailableKantorCabang = useCallback(() => {
+    if (!kantorList.length) return [];
+
+    // Jika user adalah pimpinan, tampilkan semua kantor cabang
+    if (userData?.role === 'pimpinan') {
+      return kantorList;
+    }
+
+    // Jika user bukan pimpinan, hanya tampilkan kantor cabang user tersebut
+    if (userData?.cabangOffice) {
+      return kantorList.filter(k => k.namaKantor === userData.cabangOffice);
+    }
+
+    return [];
+  }, [kantorList, userData]);
+
+  // ===================== FORM INITIALIZATION =====================
+  // Effect untuk mengisi form saat mode edit
   useEffect(() => {
     if (editingData) {
       // Validasi permission untuk presenter saat edit
@@ -162,40 +220,90 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         totalBiayaPendaftaran: editingData.totalBiayaPendaftaran ? formatCurrency(editingData.totalBiayaPendaftaran) : (editingData.biayaPendaftaran ? formatCurrency(editingData.biayaPendaftaran) : ''),
         totalBiayaJurusan: editingData.totalBiayaJurusan ? formatCurrency(editingData.totalBiayaJurusan) : (editingData.biayaJurusan ? formatCurrency(editingData.biayaJurusan) : ''),
         jalurPendaftaran: editingData.jalurPendaftaran || '',
-        sumberInformasi: editingData.sumberInformasi || ''
+        sumberInformasi: editingData.sumberInformasi || '',
+        kantorCabang: editingData.cabangOffice || ''
       });
     } else {
       // Inisialisasi form baru
+      const defaultKantorCabang = userData?.role === 'pimpinan' ? '' : (userData?.cabangOffice || '');
       setForm({
         tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
         jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
         presenter: [], // Tidak ada default presenter, user harus pilih sendiri
         caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
-        totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
+        totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: '', kantorCabang: defaultKantorCabang
       });
     }
   }, [editingData, userData, onClose, formatCurrency, parseCurrency]);
 
+  // ===================== BUSINESS LOGIC FUNCTIONS =====================
+  /**
+   * Generate nomor pendaftaran yang unique berdasarkan tanggal dan gelombang
+   * Format: YYYYMMDD-XXX (XXX adalah urutan 3 digit)
+   * Menggunakan algoritma increment untuk mencegah duplicate
+   * @param {string} tgl - Tanggal pendaftaran dalam format YYYY-MM-DD
+   * @returns {object} Object berisi nomorPendaftaran dan idGelombang
+   */
   const generateNomorPendaftaran = async (tgl) => {
-    const dateStr = tgl.replace(/-/g, '');
+    const dateStr = tgl.replace(/-/g, ''); // Convert ke YYYYMMDD
+
+    // Cari gelombang yang aktif berdasarkan tanggal
     const qGel = gelombangList.find(g => g.tanggalMulai <= tgl && g.tanggalAkhir >= tgl);
     if (!qGel) {
       alert('Tanggal daftar tidak masuk dalam rentang gelombang manapun!');
       return { nomorPendaftaran: '', idGelombang: '' };
     }
 
-    const snapshot = await getDocs(query(collection(db, 'pendaftaran_siswa'), where('idGelombang', '==', qGel.id)));
-    const urutan = snapshot.size + 1;
-    const nomor = `${dateStr}-${urutan.toString().padStart(3, '0')}`;
-    return { nomorPendaftaran: nomor, idGelombang: qGel.id };
+    try {
+      // Ambil semua data pendaftaran untuk gelombang ini untuk menentukan urutan
+      const snapshot = await getDocs(query(collection(db, 'pendaftaran_siswa'), where('idGelombang', '==', qGel.id)));
+
+      // Ambil semua nomor pendaftaran yang sudah ada untuk mencegah duplicate
+      const existingNumbers = snapshot.docs.map(doc => doc.data().nomorPendaftaran);
+
+      // Generate nomor pendaftaran dengan urutan increment
+      let urutan = snapshot.size + 1;
+      let nomor = `${dateStr}-${urutan.toString().padStart(3, '0')}`;
+
+      // Loop increment sampai mendapat nomor yang benar-benar unique
+      while (existingNumbers.includes(nomor)) {
+        urutan++;
+        nomor = `${dateStr}-${urutan.toString().padStart(3, '0')}`;
+      }
+
+      // Double check dengan query database untuk memastikan nomor benar-benar unique
+      // Ini menangani edge case jika ada concurrent access
+      const checkSnapshot = await getDocs(query(collection(db, 'pendaftaran_siswa'), where('nomorPendaftaran', '==', nomor)));
+      if (!checkSnapshot.empty) {
+        urutan++;
+        nomor = `${dateStr}-${urutan.toString().padStart(3, '0')}`;
+      }
+
+      return { nomorPendaftaran: nomor, idGelombang: qGel.id };
+    } catch (error) {
+      console.error('Error generating nomor pendaftaran:', error);
+      alert('Terjadi kesalahan saat generate nomor pendaftaran. Silakan coba lagi.');
+      return { nomorPendaftaran: '', idGelombang: '' };
+    }
   };
 
+  // ===================== FORM SUBMISSION =====================
+  /**
+   * Handle submit form pendaftaran siswa
+   * Melakukan validasi, security check, dan menyimpan data ke Firebase
+   * @param {Event} e - Form submit event
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.tglDaftar || !form.namaPendaftar || !form.jurusan) return;
+
+    // Validasi required fields
+    if (!form.tglDaftar || !form.namaPendaftar || !form.jurusan) {
+      alert('Mohon lengkapi data yang wajib diisi: Tanggal Daftar, Nama Pendaftar, dan Jurusan.');
+      return;
+    }
 
     try {
-      // Validasi email format jika diisi
+      // Validasi format email jika diisi
       if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
         alert('Format email tidak valid.');
         return;
@@ -240,8 +348,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
       }
     }
 
-    // Tentukan cabangOffice yang akan disimpan (sekarang langsung gunakan value)
-    let cabangOfficeToSave = userData?.cabangOffice || '';
+    // Tentukan cabangOffice yang akan disimpan (gunakan value dari form kantorCabang)
+    let cabangOfficeToSave = form.kantorCabang || userData?.cabangOffice || '';
 
     if (editingData?.id) {
       await updateDoc(doc(db, 'pendaftaran_siswa', editingData.id), {
@@ -262,6 +370,14 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         alert('Gagal generate nomor pendaftaran. Pastikan tanggal daftar valid.');
         return;
       }
+
+      // Validasi final untuk memastikan nomor pendaftaran benar-benar unique
+      const finalCheck = await getDocs(query(collection(db, 'pendaftaran_siswa'), where('nomorPendaftaran', '==', nomorPendaftaran)));
+      if (!finalCheck.empty) {
+        alert('Terjadi error dalam generate nomor pendaftaran. Silakan coba lagi.');
+        return;
+      }
+
       await addDoc(collection(db, 'pendaftaran_siswa'), {
         nomorPendaftaran,
         tglDaftar: form.tglDaftar,
@@ -288,16 +404,19 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         sumberInformasi: form.sumberInformasi
       });
     }
+
+    // Refresh data dan tutup form setelah berhasil submit
     fetchData();
     onClose();
 
-    // Reset form
+    // Reset form ke kondisi default setelah submit
+    const defaultKantorCabang = userData?.role === 'pimpinan' ? '' : (userData?.cabangOffice || '');
     setForm({
       tglDaftar: '', namaPendaftar: '', nomorWA: '', email: '', asalSekolah: '',
       jurusan: '', biayaJurusan: '', biayaPendaftaran: '', jalurPendaftaran: '', noKwitansi: '',
-      presenter: [], // Reset presenter kosong
+      presenter: [],
       caraDaftar: '', ket: '', jenisPotongan: '', jumlahPotongan: '',
-      totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: ''
+      totalBiayaPendaftaran: '', totalBiayaJurusan: '', sumberInformasi: '', kantorCabang: defaultKantorCabang
     });
     } catch (error) {
       console.error('Error saving data:', error);
@@ -305,86 +424,149 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     }
   };
 
-  const handleChange = (e) => {
+  // ===================== CALCULATION HELPERS =====================
+  /**
+   * Menghitung ulang total biaya berdasarkan biaya jurusan dan potongan
+   * @param {string|number} biayaJurusan - Biaya jurusan
+   * @param {string|number} jumlahPotongan - Jumlah potongan
+   * @returns {number} Total biaya setelah dikurangi potongan
+   */
+  const calculateTotalBiayaJurusan = useCallback((biayaJurusan, jumlahPotongan) => {
+    const biayaNum = parseCurrency(biayaJurusan);
+    const potonganNum = parseCurrency(jumlahPotongan);
+    const potonganValid = Math.min(potonganNum, biayaNum); // Potongan tidak boleh lebih dari biaya
+    return Math.max(biayaNum - potonganValid, 0); // Total tidak boleh negatif
+  }, [parseCurrency]);
+
+  // ===================== EVENT HANDLERS =====================
+  /**
+   * Handle perubahan nilai pada form input
+   * Termasuk logic khusus untuk calculation dan cascading updates
+   * @param {Event} e - Input change event
+   */
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
 
-    if (name === 'jurusan') {
-      // Cari biaya jurusan berdasarkan jurusan yang dipilih dari biaya_jurusan collection
+    // Handle perubahan kantor cabang - reset fields yang bergantung
+    if (name === 'kantorCabang') {
+      setForm(prev => ({
+        ...prev,
+        kantorCabang: value,
+        jurusan: '',        // Reset karena jurusan bergantung pada kantor
+        biayaJurusan: '',
+        totalBiayaJurusan: '',
+        jenisPotongan: '',  // Reset karena potongan bergantung pada kantor
+        jumlahPotongan: ''
+      }));
+    }
+    // Handle perubahan jurusan - update biaya dan hitung ulang total
+    else if (name === 'jurusan') {
       const availableJurusan = getAvailableJurusan();
       const selectedJurusan = availableJurusan.find(j => j.displayName === value);
-      const biayaJurusan = selectedJurusan ? selectedJurusan.biaya || '0' : '0';
+      const biayaJurusan = selectedJurusan?.biaya || '0';
 
-      // Hitung ulang total biaya jurusan jika ada potongan
-      const jumlahPotongan = parseCurrency(form.jumlahPotongan);
-      const biayaJurusanNum = parseCurrency(biayaJurusan);
-      const potonganValid = Math.min(jumlahPotongan, biayaJurusanNum);
-      const totalBiayaJurusan = Math.max(biayaJurusanNum - potonganValid, 0);
+      // Hitung ulang total dengan potongan yang ada
+      const totalBiayaJurusan = calculateTotalBiayaJurusan(biayaJurusan, form.jumlahPotongan);
 
       setForm(prev => ({
         ...prev,
         jurusan: value,
         biayaJurusan: formatCurrency(biayaJurusan),
         totalBiayaJurusan: formatCurrency(totalBiayaJurusan),
-        // Reset potongan jika jurusan berubah dan biaya baru lebih kecil dari potongan
-        jumlahPotongan: biayaJurusanNum === 0 ? '' : Math.min(jumlahPotongan, biayaJurusanNum).toString(),
-        jenisPotongan: biayaJurusanNum === 0 ? '' : prev.jenisPotongan
+        // Adjust potongan jika biaya baru lebih kecil
+        jumlahPotongan: parseCurrency(biayaJurusan) === 0 ? '' : Math.min(parseCurrency(prev.jumlahPotongan), parseCurrency(biayaJurusan)).toString(),
+        jenisPotongan: parseCurrency(biayaJurusan) === 0 ? '' : prev.jenisPotongan
       }));
-    } else if (name === 'biayaPendaftaran') {
-      // Total biaya pendaftaran = biaya pendaftaran saja (tanpa potongan)
+    }
+    // Handle perubahan biaya pendaftaran - update total
+    else if (name === 'biayaPendaftaran') {
       setForm(prev => ({
         ...prev,
         [name]: value,
         totalBiayaPendaftaran: formatCurrency(value)
       }));
-    } else if (name === 'jenisPotongan') {
-      // Jenis potongan mengurangi biaya jurusan
+    }
+    // Handle perubahan jenis potongan - update jumlah potongan otomatis
+    else if (name === 'jenisPotongan') {
       const availablePotongan = getAvailablePotonganBiaya();
       const selected = availablePotongan.find(d => d.jenisPotongan === value);
       const jumlahPotongan = selected ? parseCurrency(selected.jumlahPotongan) : 0;
-      const biayaJurusan = parseCurrency(form.biayaJurusan);
-      const potonganValid = Math.min(jumlahPotongan, biayaJurusan);
-      const totalBiayaJurusan = Math.max(biayaJurusan - potonganValid, 0);
+      const totalBiayaJurusan = calculateTotalBiayaJurusan(form.biayaJurusan, jumlahPotongan);
 
       setForm(prev => ({
         ...prev,
         jenisPotongan: value,
-        jumlahPotongan: selected ? potonganValid.toString() : '',
+        jumlahPotongan: selected ? Math.min(jumlahPotongan, parseCurrency(form.biayaJurusan)).toString() : '',
         totalBiayaJurusan: formatCurrency(totalBiayaJurusan)
       }));
-    } else if (name === 'jumlahPotongan') {
-      // Manual input potongan mengurangi biaya jurusan
-      const biayaJurusan = parseCurrency(form.biayaJurusan);
-      const jumlahPotongan = parseCurrency(value);
-      const potonganValid = Math.min(jumlahPotongan, biayaJurusan);
-      const totalBiayaJurusan = Math.max(biayaJurusan - potonganValid, 0);
+    }
+    // Handle manual input potongan
+    else if (name === 'jumlahPotongan') {
+      const totalBiayaJurusan = calculateTotalBiayaJurusan(form.biayaJurusan, value);
 
       setForm(prev => ({
         ...prev,
         jumlahPotongan: value,
         totalBiayaJurusan: formatCurrency(totalBiayaJurusan)
       }));
-    } else {
+    }
+    // Handle perubahan field lainnya
+    else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
-  };
+  }, [getAvailableJurusan, getAvailablePotonganBiaya, calculateTotalBiayaJurusan, formatCurrency, parseCurrency, form.jumlahPotongan, form.biayaJurusan]);
 
-  // const handleChange = (e) => {
-  //   setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  // };
+  /**
+   * Handle perubahan pada presenter (multiple selection)
+   * @param {Event} event - ToggleButton group change event
+   * @param {Array} newPresenter - Array presenter yang dipilih
+   */
+  const handlePresenterChange = useCallback((event, newPresenter) => {
+    setForm(prev => ({ ...prev, presenter: newPresenter }));
+  }, []);
 
+  // ===================== UI RENDER =====================
   return (
     <Drawer anchor="left" open={open} onClose={onClose} PaperProps={{ sx: { width: '75vw' } }}>
       <Box sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">{editingData ? 'Edit Pendaftaran Siswa' : 'Tambah Pendaftaran Siswa'}</Typography>
+          <Typography variant="h6">
+            {editingData ? 'Edit Pendaftaran Siswa' : 'Tambah Pendaftaran Siswa'}
+          </Typography>
           <IconButton onClick={onClose}><CloseIcon /></IconButton>
         </Box>
 
         <form onSubmit={handleSubmit}>
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
-            {/* Kolom kiri */}
+            {/* Kolom kiri - Data Pribadi */}
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField type="date" label="Tanggal Daftar" name="tglDaftar" value={form.tglDaftar} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} required />
+              <TextField
+                type="date"
+                label="Tanggal Daftar"
+                name="tglDaftar"
+                value={form.tglDaftar}
+                onChange={handleChange}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                required
+              />
+              <TextField
+                select
+                label="Kantor Cabang"
+                name="kantorCabang"
+                value={form.kantorCabang}
+                onChange={handleChange}
+                fullWidth
+                required
+                disabled={userData?.role !== 'pimpinan'}
+              >
+                <MenuItem value="">Pilih Kantor Cabang</MenuItem>
+                {getAvailableKantorCabang().map((kantor) => (
+                  <MenuItem key={kantor.id} value={kantor.namaKantor}>
+                    {kantor.namaKantor}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField label="Nama Pendaftar" name="namaPendaftar" value={form.namaPendaftar} onChange={handleChange} fullWidth />
               <TextField label="Nomor WA" name="nomorWA" value={form.nomorWA} onChange={handleChange} fullWidth />
               <TextField label="Email" name="email" value={form.email} onChange={handleChange} fullWidth />
@@ -456,10 +638,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <Typography sx={{ mb: 1 }}>Pilih Presenter</Typography>
                 <ToggleButtonGroup
                   value={form.presenter}
-                  onChange={(e, newVal) => {
-                    // Semua user bisa memilih presenter manapun
-                    setForm(prev => ({ ...prev, presenter: newVal }));
-                  }}
+                  onChange={handlePresenterChange}
                   multiple
                   color="primary"
                   size="small"
