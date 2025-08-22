@@ -162,9 +162,6 @@ const HeaderPimpinan = () => {
         </ListItem>
         <Collapse in={expandedMobile.data} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/data-jurusan')}>
-              <ListItemText primary="Data Jurusan (Legacy)" />
-            </ListItem>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/daftar-jurusan')}>
               <ListItemText primary="Daftar Jurusan" />
             </ListItem>
@@ -348,9 +345,6 @@ const HeaderPimpinan = () => {
                 Data
               </Button>
               <Menu anchorEl={anchorData} open={Boolean(anchorData)} onClose={() => setAnchorData(null)}>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/data-jurusan'); }}>
-                  Data Jurusan (Legacy)
-                </MenuItem>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/daftar-jurusan'); }}>
                   Daftar Jurusan
                 </MenuItem>

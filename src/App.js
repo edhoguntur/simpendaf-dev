@@ -8,7 +8,6 @@ import PimpinanDashboard from './pages/PimpinanDashboard';
 import PresenterDashboard from './pages/PresenterDashboard';
 import TambahUser from './pages/TambahUser';
 import TambahGelombang from './pages/TambahGelombang';
-import DataJurusan from './pages/DataJurusan';
 import DataPresenter from './pages/DataPresenter';
 import MetodeBayar from './pages/MetodeBayar';
 import PendaftaranSiswa from './pages/PendaftaranSiswa';
@@ -52,11 +51,6 @@ function App() {
           <Route path="/pimpinan/tambah-gelombang" element={
             <ProtectedRoute requiredRole="pimpinan">
               <TambahGelombang />
-            </ProtectedRoute>
-          } />
-          <Route path="/pimpinan/data-jurusan" element={
-            <ProtectedRoute requiredRole="pimpinan">
-              <DataJurusan />
             </ProtectedRoute>
           } />
           <Route path="/pimpinan/daftar-jurusan" element={
