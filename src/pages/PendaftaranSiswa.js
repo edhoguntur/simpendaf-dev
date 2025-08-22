@@ -6,7 +6,7 @@ import {
   TablePagination, Typography
 } from '@mui/material';
 import {
-  Edit, Delete, Search, ArrowUpward, ArrowDownward,
+  Edit, Delete, Search,
   FileDownload, Visibility, HowToReg
 } from '@mui/icons-material';
 import HeaderPimpinan from '../components/HeaderPimpinan';
@@ -38,7 +38,7 @@ const PendaftaranSiswa = () => {
   const [gelombangList, setGelombangList] = useState([]);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [editingData, setEditingData] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'tglDaftar', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'nomorPendaftaran', direction: 'desc' });
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [selectedPendaftar, setSelectedPendaftar] = useState(null);
@@ -218,11 +218,6 @@ const PendaftaranSiswa = () => {
     });
   };
 
-  const getSortIcon = (key) => {
-    if (sortConfig.key !== key) return null;
-    return sortConfig.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />;
-  };
-
   const sortedData = [...data].sort((a, b) => {
     if (!sortConfig.key) return 0;
 
@@ -290,25 +285,40 @@ const PendaftaranSiswa = () => {
     // Export uses filteredData (all filtered data, not paginated)
     const exportData = filteredData.map(item => {
       const gel = gelombangList.find(g => g.id === item.idGelombang);
+
+      // Format currency values for better readability
+      const formatCurrency = (value) => {
+        if (!value) return 0;
+        const numValue = parseInt(value.toString().replace(/\./g, '')) || 0;
+        return numValue.toLocaleString('id-ID');
+      };
+
       return {
-        'Nomor Pendaftaran': item.nomorPendaftaran,
-        'Tanggal Daftar': item.tglDaftar,
-        'Nama Pendaftar': item.namaPendaftar,
-        'Nomor WA': item.nomorWA,
-        'Email': item.email,
-        'Asal Sekolah': item.asalSekolah,
-        'Jurusan': item.jurusan,
-        'Biaya Pendaftaran': item.biayaPendaftaran,
-        'Jenis Potongan': item.jenisPotongan || 'Tanpa Potongan',
-        'Jumlah Potongan': item.jumlahPotongan || 0,
-        'Total Biaya Pendaftaran': item.totalBiayaPendaftaran || item.biayaPendaftaran,
-        'No Kwitansi': item.noKwitansi,
-        'Presenter': Array.isArray(item.presenter) ? item.presenter.join(', ') : item.presenter || '',
-        'Cara Daftar': item.caraDaftar,
-        'Sumber Informasi': item.sumberInformasi || '',
-        'Keterangan': item.ket,
+        'Nomor Pendaftaran': item.nomorPendaftaran || '',
+        'Tanggal Daftar': item.tglDaftar || '',
+        'ID Gelombang': item.idGelombang || '',
+        'Nama Gelombang': gel?.namaGelombang || '(tidak ditemukan)',
+        'Nama Pendaftar': item.namaPendaftar || '',
+        'Nomor WA': item.nomorWA || '',
+        'Email': item.email || '',
+        'Asal Sekolah': item.asalSekolah || '',
+        'Jurusan': item.jurusan || '',
+        'Kode Jurusan': item.jurusanKode || '',
+        'Nama Jurusan': item.jurusanNama || '',
+        'Biaya Jurusan': formatCurrency(item.biayaJurusan),
+        'Biaya Pendaftaran': item.biayaPendaftaran || '',
+        'Jalur Pendaftaran': item.jalurPendaftaran || '',
+        'No Kwitansi': item.noKwitansi || '',
+        'Presenter': Array.isArray(item.presenter) ? item.presenter.join(', ') : (item.presenter || ''),
+        'Cara Daftar': item.caraDaftar || '',
+        'Keterangan': item.ket || '',
         'Cabang Office': item.cabangOffice || '',
-        'Nama Gelombang': gel?.namaGelombang || '(tidak ditemukan)'
+        'Jenis Potongan': item.jenisPotongan || 'Tanpa Potongan',
+        'Jumlah Potongan': formatCurrency(item.jumlahPotongan),
+        'Total Biaya Pendaftaran': formatCurrency(item.totalBiayaPendaftaran || item.biayaPendaftaran),
+        'Total Biaya Jurusan': formatCurrency(item.totalBiayaJurusan || item.biayaJurusan),
+        'Sumber Informasi': item.sumberInformasi || '',
+        'ID Pendaftaran': item.idPendaftaran || item.id || ''
       };
     });
 
@@ -430,20 +440,20 @@ const PendaftaranSiswa = () => {
                     onClick={() => handleSort('nomorPendaftaran')}
                     sx={{ cursor: 'pointer', userSelect: 'none' }}
                   >
-                    Nomor Pendaftaran {getSortIcon('nomorPendaftaran')}
+                    Nomor Pendaftaran
                   </TableCell>
                   <TableCell
                     onClick={() => handleSort('namaPendaftar')}
                     sx={{ cursor: 'pointer', userSelect: 'none' }}
                   >
-                    Nama {getSortIcon('namaPendaftar')}
+                    Nama
                   </TableCell>
                   <TableCell>WA</TableCell>
                   <TableCell
                     onClick={() => handleSort('asalSekolah')}
                     sx={{ cursor: 'pointer', userSelect: 'none' }}
                   >
-                    Sekolah {getSortIcon('asalSekolah')}
+                    Sekolah
                   </TableCell>
                   <TableCell>Jurusan</TableCell>
                   <TableCell>Tgl Daftar</TableCell>

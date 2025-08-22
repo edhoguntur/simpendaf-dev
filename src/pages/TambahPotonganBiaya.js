@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, TextField, Button,
   TableContainer, Table, TableHead, TableBody,
-  TableRow, TableCell, IconButton
+  TableRow, TableCell, IconButton, FormControl,
+  InputLabel, Select, MenuItem
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import { db } from '../firebase';
@@ -23,11 +24,13 @@ const TambahPotonganBiaya = () => {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
+    cabangOffice: '',
     jenisPotongan: '',
     jumlahPotongan: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [jenisPotonganList, setJenisPotonganList] = useState([]);
+  const [kantorList, setKantorList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -37,12 +40,27 @@ const TambahPotonganBiaya = () => {
 
   useEffect(() => {
     fetchData();
+    fetchKantor();
   }, []);
 
   const fetchData = async () => {
-    const snapshot = await getDocs(collection(db, 'potongan_biaya'));
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setJenisPotonganList(data);
+    try {
+      const snapshot = await getDocs(collection(db, 'potongan_biaya'));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setJenisPotonganList(data);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  const fetchKantor = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'kantor'));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setKantorList(data);
+    } catch (error) {
+      // Handle error silently
+    }
   };
 
   const handleChange = (e) => {
@@ -62,7 +80,7 @@ const TambahPotonganBiaya = () => {
       } else {
         await addDoc(collection(db, 'potongan_biaya'), form);
       }
-      setForm({ jenisPotongan: '', jumlahPotongan: '' });
+      setForm({ cabangOffice: '', jenisPotongan: '', jumlahPotongan: '' });
       setEditingId(null);
       fetchData();
     } catch (err) {
@@ -71,7 +89,11 @@ const TambahPotonganBiaya = () => {
   };
 
   const handleEdit = (item) => {
-    setForm({ jenisPotongan: item.jenisPotongan, jumlahPotongan: item.jumlahPotongan });
+    setForm({
+      cabangOffice: item.cabangOffice || '',
+      jenisPotongan: item.jenisPotongan,
+      jumlahPotongan: item.jumlahPotongan
+    });
     setEditingId(item.id);
   };
 
@@ -94,6 +116,25 @@ const TambahPotonganBiaya = () => {
             {editingId ? 'Edit Potongan Biaya' : 'Tambah Potongan Biaya'}
           </Typography>
           <form onSubmit={handleSubmit}>
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>Kantor Cabang</InputLabel>
+              <Select
+                name="cabangOffice"
+                value={form.cabangOffice}
+                onChange={handleChange}
+                label="Kantor Cabang"
+              >
+                {kantorList.length === 0 ? (
+                  <MenuItem disabled>Tidak ada kantor tersedia</MenuItem>
+                ) : (
+                  kantorList.map((kantor) => (
+                    <MenuItem key={kantor.id} value={kantor.namaKantor}>
+                      {kantor.namaKantor}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
             <TextField
               label="Jenis Potongan" name="jenisPotongan" fullWidth margin="normal"
               value={form.jenisPotongan} onChange={handleChange} required
@@ -108,7 +149,7 @@ const TambahPotonganBiaya = () => {
             {editingId && (
               <Button onClick={() => {
                 setEditingId(null);
-                setForm({ jenisPotongan: '', jumlahPotongan: '' });
+                setForm({ cabangOffice: '', jenisPotongan: '', jumlahPotongan: '' });
               }} fullWidth sx={{ mt: 1 }}>
                 Batal Edit
               </Button>
@@ -124,23 +165,28 @@ const TambahPotonganBiaya = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>No</TableCell>
+                  <TableCell>Kantor Cabang</TableCell>
                   <TableCell>Jenis Potongan</TableCell>
                   <TableCell>Jumlah Potongan</TableCell>
                   <TableCell align="center">Aksi</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {jenisPotonganList.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.jenisPotongan}</TableCell>
-                    <TableCell>{item.jumlahPotongan}</TableCell>
-                    <TableCell align="center">
-                      <IconButton onClick={() => handleEdit(item)}><Edit fontSize="small" /></IconButton>
-                      <IconButton onClick={() => handleDelete(item.id)}><Delete fontSize="small" /></IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {jenisPotonganList.map((item, index) => {
+                  // cabangOffice sekarang menyimpan nama kantor langsung
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.cabangOffice || 'Belum dipilih'}</TableCell>
+                      <TableCell>{item.jenisPotongan}</TableCell>
+                      <TableCell>{item.jumlahPotongan}</TableCell>
+                      <TableCell align="center">
+                        <IconButton onClick={() => handleEdit(item)}><Edit fontSize="small" /></IconButton>
+                        <IconButton onClick={() => handleDelete(item.id)}><Delete fontSize="small" /></IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
