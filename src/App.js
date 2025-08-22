@@ -19,6 +19,8 @@ import TambahSumberInformasi from './pages/TambahSumberInformasi';
 import TambahBiayaPendaftaran from './pages/TambahBiayaPendaftaran';
 import TambahJalurPendaftaran from './pages/TambahJalurPendaftaran';
 import TambahKantor from './pages/TambahKantor';
+import DaftarJurusan from './pages/DaftarJurusan';
+import BiayaJurusan from './pages/BiayaJurusan';
 import StatistikPresenter from './pages/statistikPresenter';
 import StatistikPresenterIndividual from './pages/StatistikPresenterIndividual';
 import StatistikKantorCabang from './pages/StatistikKantorCabang';
@@ -55,6 +57,16 @@ function App() {
           <Route path="/pimpinan/data-jurusan" element={
             <ProtectedRoute requiredRole="pimpinan">
               <DataJurusan />
+            </ProtectedRoute>
+          } />
+          <Route path="/pimpinan/daftar-jurusan" element={
+            <ProtectedRoute requiredRole="pimpinan">
+              <DaftarJurusan />
+            </ProtectedRoute>
+          } />
+          <Route path="/pimpinan/biaya-jurusan" element={
+            <ProtectedRoute requiredRole="pimpinan">
+              <BiayaJurusan />
             </ProtectedRoute>
           } />
           <Route path="/pimpinan/data-presenter" element={

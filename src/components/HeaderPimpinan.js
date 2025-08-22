@@ -163,7 +163,13 @@ const HeaderPimpinan = () => {
         <Collapse in={expandedMobile.data} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/data-jurusan')}>
-              <ListItemText primary="Jurusan" />
+              <ListItemText primary="Data Jurusan (Legacy)" />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/daftar-jurusan')}>
+              <ListItemText primary="Daftar Jurusan" />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/biaya-jurusan')}>
+              <ListItemText primary="Biaya Jurusan" />
             </ListItem>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/metode-bayar')}>
               <ListItemText primary="Metode Bayar" />
@@ -343,7 +349,13 @@ const HeaderPimpinan = () => {
               </Button>
               <Menu anchorEl={anchorData} open={Boolean(anchorData)} onClose={() => setAnchorData(null)}>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/data-jurusan'); }}>
-                  Data Jurusan
+                  Data Jurusan (Legacy)
+                </MenuItem>
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/daftar-jurusan'); }}>
+                  Daftar Jurusan
+                </MenuItem>
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/biaya-jurusan'); }}>
+                  Biaya Jurusan
                 </MenuItem>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-kantor'); }}>
                   Tambah Kantor
