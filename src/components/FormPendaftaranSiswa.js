@@ -23,17 +23,31 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   // Helper fungsi untuk mengubah format mata uang Indonesia ke angka
   const parseCurrency = useCallback((value) => {
     if (!value) return 0;
-    return parseInt(value.toString().replace(/\./g, ''));
+    try {
+      const cleanValue = value.toString().replace(/\./g, '');
+      const numValue = parseInt(cleanValue);
+      return isNaN(numValue) ? 0 : numValue;
+    } catch (error) {
+      console.warn('Error parsing currency:', value, error);
+      return 0;
+    }
   }, []);
 
   // Helper fungsi untuk format nilai mata uang ke format Indonesia (1.000.000)
   const formatCurrency = useCallback((value) => {
     if (!value) return '0';
-    // Jika value sudah berformat (mengandung titik), parse dulu
-    const numericValue = typeof value === 'string' && value.includes('.')
-      ? parseCurrency(value)
-      : parseInt(value);
-    return numericValue.toLocaleString('id-ID');
+    try {
+      // Jika value sudah berformat (mengandung titik), parse dulu
+      const numericValue = typeof value === 'string' && value.includes('.')
+        ? parseCurrency(value)
+        : parseInt(value);
+
+      if (isNaN(numericValue)) return '0';
+      return numericValue.toLocaleString('id-ID');
+    } catch (error) {
+      console.warn('Error formatting currency:', value, error);
+      return '0';
+    }
   }, [parseCurrency]);
 
   // ===================== STATE MANAGEMENT =====================
@@ -111,9 +125,10 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
    * Mendapatkan list jurusan yang tersedia berdasarkan cabangOffice user atau kantor cabang yang dipilih
    * Filter berdasarkan role user: presenter hanya melihat jurusan untuk cabangOffice mereka
    * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @param {string} selectedJalurPendaftaran - Jalur pendaftaran yang dipilih di form (optional)
    * @returns {Array} List jurusan yang sudah difilter dengan format display
    */
-  const getAvailableJurusan = useCallback((selectedKantorCabang = null) => {
+  const getAvailableJurusan = useCallback((selectedKantorCabang = null, selectedJalurPendaftaran = null) => {
     if (!biayaJurusanList.length || !jurusanMasterList.length || !kantorList.length) return [];
 
     // Filter biaya jurusan berdasarkan cabang office yang dipilih
@@ -121,14 +136,20 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
     // Tentukan kantorCabang yang akan digunakan untuk filtering
     const kantorCabangForFiltering = selectedKantorCabang || form.kantorCabang || userData?.cabangOffice;
+    const jalurPendaftaranForFiltering = selectedJalurPendaftaran || form.jalurPendaftaran;
 
     // Filter berdasarkan kantor cabang yang dipilih/default
     if (kantorCabangForFiltering) {
       filteredBiayaJurusan = biayaJurusanList.filter(bj => bj.cabangOffice === kantorCabangForFiltering);
     }
 
+    // Filter berdasarkan jalur pendaftaran jika dipilih
+    if (jalurPendaftaranForFiltering) {
+      filteredBiayaJurusan = filteredBiayaJurusan.filter(bj => bj.jalurPendaftaran === jalurPendaftaranForFiltering);
+    }
+
     // Gabungkan dengan data master jurusan untuk mendapatkan kode dan nama
-    return filteredBiayaJurusan.map(biayaJurusan => {
+    const result = filteredBiayaJurusan.map(biayaJurusan => {
       const masterJurusan = jurusanMasterList.find(jm => jm.id === biayaJurusan.jurusanId);
       const namaKantor = biayaJurusan.cabangOffice || 'Kantor tidak ditemukan';
 
@@ -142,7 +163,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
           : 'Data tidak lengkap'
       };
     }).filter(item => item.kode && item.nama); // Filter out incomplete data
-  }, [biayaJurusanList, jurusanMasterList, kantorList, userData, form.kantorCabang]);
+
+    return result;
+  }, [biayaJurusanList, jurusanMasterList, kantorList, userData, form.kantorCabang, form.jalurPendaftaran]);
 
   /**
    * Mendapatkan biaya pendaftaran yang tersedia berdasarkan kantor cabang dan jalur pendaftaran yang dipilih
@@ -180,25 +203,39 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   }, [biayaList, userData, form.kantorCabang, form.jalurPendaftaran]);
 
   /**
-   * Mendapatkan potongan biaya yang tersedia berdasarkan kantor cabang yang dipilih
-   * Filter berdasarkan kantor cabang di form, sama seperti logic pada jurusan
+   * Mendapatkan potongan biaya yang tersedia berdasarkan kantor cabang dan jalur pendaftaran yang dipilih
+   * Filter berdasarkan kantor cabang dan jalur pendaftaran di form, sama seperti logic pada biaya pendaftaran
    * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @param {string} selectedJalurPendaftaran - Jalur pendaftaran yang dipilih di form (optional)
    * @returns {Array} List potongan biaya yang sudah difilter
    */
-  const getAvailablePotonganBiaya = useCallback((selectedKantorCabang = null) => {
+  const getAvailablePotonganBiaya = useCallback((selectedKantorCabang = null, selectedJalurPendaftaran = null) => {
     if (!jenisPotonganList.length) return [];
 
-    // Tentukan kantorCabang yang akan digunakan untuk filtering
+    // Tentukan kantorCabang dan jalurPendaftaran yang akan digunakan untuk filtering
     const kantorCabangForFiltering = selectedKantorCabang || form.kantorCabang || userData?.cabangOffice;
+    const jalurPendaftaranForFiltering = selectedJalurPendaftaran || form.jalurPendaftaran;
 
-    // Filter berdasarkan kantor cabang yang dipilih/default
+    // Filter berdasarkan kantor cabang dan jalur pendaftaran yang dipilih/default
+    let filteredList = jenisPotonganList;
+
+    // Filter berdasarkan kantor cabang
     if (kantorCabangForFiltering) {
-      return jenisPotonganList.filter(p => p.cabangOffice === kantorCabangForFiltering);
+      filteredList = filteredList.filter(p => p.cabangOffice === kantorCabangForFiltering);
+    }
+
+    // Filter berdasarkan jalur pendaftaran jika dipilih
+    if (jalurPendaftaranForFiltering) {
+      filteredList = filteredList.filter(p => p.jalurPendaftaran === jalurPendaftaranForFiltering);
     }
 
     // Jika tidak ada kantor cabang yang dipilih, tampilkan semua (untuk pimpinan)
-    return userData?.role === 'pimpinan' ? jenisPotonganList : [];
-  }, [jenisPotonganList, userData, form.kantorCabang]);
+    if (!kantorCabangForFiltering && userData?.role === 'pimpinan') {
+      return jenisPotonganList;
+    }
+
+    return filteredList;
+  }, [jenisPotonganList, userData, form.kantorCabang, form.jalurPendaftaran]);
 
   /**
    * Mendapatkan list kantor cabang yang tersedia berdasarkan role user
@@ -361,32 +398,45 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
       }
 
     // Ambil informasi lengkap jurusan yang dipilih
-    const selectedJurusanInfo = getAvailableJurusan().find(j => j.displayName === form.jurusan);
+    const selectedJurusanInfo = getAvailableJurusan(form.kantorCabang, form.jalurPendaftaran).find(j => j.displayName === form.jurusan);
 
-    // Validasi keamanan: pastikan data yang dipilih sesuai dengan kantor cabang yang dipilih
+    // Validasi keamanan: pastikan data yang dipilih sesuai dengan kantor cabang dan jalur pendaftaran yang dipilih
     const kantorCabangToValidate = form.kantorCabang || userData?.cabangOffice;
+    const jalurPendaftaranToValidate = form.jalurPendaftaran;
 
     if (kantorCabangToValidate) {
-      // Validasi jurusan sesuai dengan kantor cabang
+      // Validasi jurusan sesuai dengan kantor cabang dan jalur pendaftaran
       if (selectedJurusanInfo?.cabangOffice !== kantorCabangToValidate) {
         alert('Error: Jurusan yang dipilih tidak sesuai dengan kantor cabang yang dipilih.');
+        return;
+      }
+      if (jalurPendaftaranToValidate && selectedJurusanInfo?.jalurPendaftaran !== jalurPendaftaranToValidate) {
+        alert('Error: Jurusan yang dipilih tidak sesuai dengan jalur pendaftaran yang dipilih.');
         return;
       }
 
       // Validasi biaya pendaftaran jika ada
       if (form.biayaPendaftaran) {
-        const selectedBiayaPendaftaran = getAvailableBiayaPendaftaran().find(b => b.jumlahBiayaPendaftaran === form.biayaPendaftaran);
+        const selectedBiayaPendaftaran = getAvailableBiayaPendaftaran(form.kantorCabang, form.jalurPendaftaran).find(b => b.jumlahBiayaPendaftaran === form.biayaPendaftaran);
         if (selectedBiayaPendaftaran?.cabangOffice !== kantorCabangToValidate) {
           alert('Error: Biaya pendaftaran yang dipilih tidak sesuai dengan kantor cabang yang dipilih.');
+          return;
+        }
+        if (jalurPendaftaranToValidate && selectedBiayaPendaftaran?.jalurPendaftaran !== jalurPendaftaranToValidate) {
+          alert('Error: Biaya pendaftaran yang dipilih tidak sesuai dengan jalur pendaftaran yang dipilih.');
           return;
         }
       }
 
       // Validasi potongan biaya jika ada
       if (form.jenisPotongan) {
-        const selectedPotongan = getAvailablePotonganBiaya().find(p => p.jenisPotongan === form.jenisPotongan);
+        const selectedPotongan = getAvailablePotonganBiaya(form.kantorCabang, form.jalurPendaftaran).find(p => p.jenisPotongan === form.jenisPotongan);
         if (selectedPotongan?.cabangOffice !== kantorCabangToValidate) {
           alert('Error: Potongan biaya yang dipilih tidak sesuai dengan kantor cabang yang dipilih.');
+          return;
+        }
+        if (jalurPendaftaranToValidate && selectedPotongan?.jalurPendaftaran !== jalurPendaftaranToValidate) {
+          alert('Error: Potongan biaya yang dipilih tidak sesuai dengan jalur pendaftaran yang dipilih.');
           return;
         }
       }
@@ -506,20 +556,34 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         jalurPendaftaran: ''      // Reset karena jalur pendaftaran bergantung pada kantor
       }));
     }
-    // Handle perubahan jalur pendaftaran - reset biaya pendaftaran
+    // Handle perubahan jalur pendaftaran - reset fields yang bergantung
     else if (name === 'jalurPendaftaran') {
       setForm(prev => ({
         ...prev,
         jalurPendaftaran: value,
+        jurusan: '',              // Reset karena jurusan bergantung pada jalur pendaftaran
+        biayaJurusan: '',
+        totalBiayaJurusan: '',
         biayaPendaftaran: '',     // Reset karena biaya pendaftaran bergantung pada jalur
-        totalBiayaPendaftaran: ''
+        totalBiayaPendaftaran: '',
+        jenisPotongan: '',        // Reset karena potongan biaya bergantung pada jalur pendaftaran
+        jumlahPotongan: ''
       }));
     }
     // Handle perubahan jurusan - update biaya dan hitung ulang total
     else if (name === 'jurusan') {
-      const availableJurusan = getAvailableJurusan();
+      const availableJurusan = getAvailableJurusan(form.kantorCabang, form.jalurPendaftaran);
       const selectedJurusan = availableJurusan.find(j => j.displayName === value);
-      const biayaJurusan = selectedJurusan?.biaya || '0';
+
+      // Pastikan biaya dalam format yang benar
+      let biayaJurusan = '0';
+      if (selectedJurusan?.biaya) {
+        // Jika biaya sudah dalam format number, gunakan langsung
+        // Jika dalam format string dengan titik, parse dulu
+        biayaJurusan = typeof selectedJurusan.biaya === 'string'
+          ? selectedJurusan.biaya.replace(/\./g, '')
+          : selectedJurusan.biaya.toString();
+      }
 
       // Hitung ulang total dengan potongan yang ada
       const totalBiayaJurusan = calculateTotalBiayaJurusan(biayaJurusan, form.jumlahPotongan);
@@ -544,7 +608,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     }
     // Handle perubahan jenis potongan - update jumlah potongan otomatis
     else if (name === 'jenisPotongan') {
-      const availablePotongan = getAvailablePotonganBiaya(form.kantorCabang);
+      const availablePotongan = getAvailablePotonganBiaya(form.kantorCabang, form.jalurPendaftaran);
       const selected = availablePotongan.find(d => d.jenisPotongan === value);
       const jumlahPotongan = selected ? parseCurrency(selected.jumlahPotongan) : 0;
       const totalBiayaJurusan = calculateTotalBiayaJurusan(form.biayaJurusan, jumlahPotongan);
@@ -570,7 +634,7 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
-  }, [getAvailableJurusan, getAvailablePotonganBiaya, calculateTotalBiayaJurusan, formatCurrency, parseCurrency, form.jumlahPotongan, form.biayaJurusan, form.kantorCabang]);
+  }, [getAvailableJurusan, getAvailablePotonganBiaya, calculateTotalBiayaJurusan, formatCurrency, parseCurrency, form.jumlahPotongan, form.biayaJurusan, form.kantorCabang, form.jalurPendaftaran]);
 
   /**
    * Handle perubahan pada presenter (multiple selection)
@@ -633,18 +697,36 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 required
               >
                 <MenuItem value="">Pilih Jalur Pendaftaran</MenuItem>
-                {getAvailableJalurPendaftaran(form.kantorCabang).map((j, i) => (
-                  <MenuItem key={i} value={j.jalurPendaftaran}>{j.jalurPendaftaran}</MenuItem>
+                {getAvailableJalurPendaftaran(form.kantorCabang).map((j) => (
+                  <MenuItem key={j.id || `jalur-${j.jalurPendaftaran}-${j.kantorCabang}`} value={j.jalurPendaftaran}>{j.jalurPendaftaran}</MenuItem>
                 ))}
               </TextField>
               <TextField label="Nama Pendaftar" name="namaPendaftar" value={form.namaPendaftar} onChange={handleChange} fullWidth />
               <TextField label="Nomor WA" name="nomorWA" value={form.nomorWA} onChange={handleChange} fullWidth />
               <TextField label="Email" name="email" value={form.email} onChange={handleChange} fullWidth />
               <TextField label="Asal Sekolah" name="asalSekolah" value={form.asalSekolah} onChange={handleChange} fullWidth />
-              <TextField select label="Jurusan" name="jurusan" value={form.jurusan} onChange={handleChange} fullWidth>
-                {getAvailableJurusan().map((j, i) => (
-                  <MenuItem key={i} value={j.displayName}>{j.displayName}</MenuItem>
-                ))}
+              <TextField
+                select
+                label="Jurusan"
+                name="jurusan"
+                value={form.jurusan}
+                onChange={handleChange}
+                fullWidth
+                required
+                disabled={!form.kantorCabang || !form.jalurPendaftaran}
+              >
+                <MenuItem value="">Pilih Jurusan</MenuItem>
+                {!form.kantorCabang ? (
+                  <MenuItem disabled>Pilih kantor cabang terlebih dahulu</MenuItem>
+                ) : !form.jalurPendaftaran ? (
+                  <MenuItem disabled>Pilih jalur pendaftaran terlebih dahulu</MenuItem>
+                ) : getAvailableJurusan(form.kantorCabang, form.jalurPendaftaran).length === 0 ? (
+                  <MenuItem disabled>Tidak ada jurusan tersedia untuk kantor dan jalur ini</MenuItem>
+                ) : (
+                  getAvailableJurusan(form.kantorCabang, form.jalurPendaftaran).map((j) => (
+                    <MenuItem key={j.id || `${j.kode}-${j.nama}`} value={j.displayName}>{j.displayName}</MenuItem>
+                  ))
+                )}
               </TextField>
               <TextField
                 label="Biaya Jurusan"
@@ -661,13 +743,22 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 onChange={handleChange}
                 fullWidth
                 required
+                disabled={!form.kantorCabang || !form.jalurPendaftaran}
               >
                 <MenuItem value="">Pilih Biaya Pendaftaran</MenuItem>
-                {getAvailableBiayaPendaftaran(form.kantorCabang, form.jalurPendaftaran).map((b, i) => (
-                  <MenuItem key={i} value={b.jumlahBiayaPendaftaran}>
-                    {b.jalurPendaftaran} - Rp {b.jumlahBiayaPendaftaran}
-                  </MenuItem>
-                ))}
+                {!form.kantorCabang ? (
+                  <MenuItem disabled>Pilih kantor cabang terlebih dahulu</MenuItem>
+                ) : !form.jalurPendaftaran ? (
+                  <MenuItem disabled>Pilih jalur pendaftaran terlebih dahulu</MenuItem>
+                ) : getAvailableBiayaPendaftaran(form.kantorCabang, form.jalurPendaftaran).length === 0 ? (
+                  <MenuItem disabled>Tidak ada biaya pendaftaran tersedia untuk kantor dan jalur ini</MenuItem>
+                ) : (
+                  getAvailableBiayaPendaftaran(form.kantorCabang, form.jalurPendaftaran).map((b) => (
+                    <MenuItem key={b.id || `${b.cabangOffice}-${b.jalurPendaftaran}-${b.jumlahBiayaPendaftaran}`} value={b.jumlahBiayaPendaftaran}>
+                      {b.jalurPendaftaran} - Rp {b.jumlahBiayaPendaftaran}
+                    </MenuItem>
+                  ))
+                )}
               </TextField>
               <TextField
                 select
@@ -676,12 +767,22 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 value={form.jenisPotongan || ''}
                 onChange={handleChange}
                 fullWidth
-                disabled={parseCurrency(form.biayaJurusan) === 0}
+                disabled={parseCurrency(form.biayaJurusan) === 0 || !form.kantorCabang || !form.jalurPendaftaran}
               >
                 <MenuItem value="">Tanpa Potongan Biaya</MenuItem>
-                {getAvailablePotonganBiaya(form.kantorCabang).map((d, i) => (
-                  <MenuItem key={i} value={d.jenisPotongan}>{d.jenisPotongan}</MenuItem>
-                ))}
+                {!form.kantorCabang ? (
+                  <MenuItem disabled>Pilih kantor cabang terlebih dahulu</MenuItem>
+                ) : !form.jalurPendaftaran ? (
+                  <MenuItem disabled>Pilih jalur pendaftaran terlebih dahulu</MenuItem>
+                ) : parseCurrency(form.biayaJurusan) === 0 ? (
+                  <MenuItem disabled>Pilih jurusan terlebih dahulu</MenuItem>
+                ) : getAvailablePotonganBiaya(form.kantorCabang, form.jalurPendaftaran).length === 0 ? (
+                  <MenuItem disabled>Tidak ada potongan biaya tersedia untuk kantor dan jalur ini</MenuItem>
+                ) : (
+                  getAvailablePotonganBiaya(form.kantorCabang, form.jalurPendaftaran).map((d) => (
+                    <MenuItem key={d.id || `${d.cabangOffice}-${d.jalurPendaftaran}-${d.jenisPotongan}`} value={d.jenisPotongan}>{d.jenisPotongan}</MenuItem>
+                  ))
+                )}
               </TextField>
               <TextField
                 label="Jumlah Potongan"
@@ -714,9 +815,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                   size="small"
                   sx={{ flexWrap: 'wrap', gap: 1 }}
                 >
-                  {presenterList.map((p, i) => (
+                  {presenterList.map((p) => (
                     <ToggleButton
-                      key={i}
+                      key={p.id || `presenter-${p.namaLengkap}`}
                       value={p.namaLengkap}
                       selected={form.presenter.includes(p.namaLengkap)}
                       sx={{
@@ -744,8 +845,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <MenuItem value="TF">TF</MenuItem>
                 <MenuItem value="CICIL">CICIL</MenuItem> */}
                 <MenuItem value="">Pilih Metode Pembayaran</MenuItem>
-                {metodeList.map((s, i) => (
-                  <MenuItem key={i} value={s.idcode}>{s.idcode}</MenuItem>
+                {metodeList.map((s) => (
+                  <MenuItem key={s.id || `metode-${s.idcode}`} value={s.idcode}>{s.idcode}</MenuItem>
                 ))}
               </TextField>
               <TextField
@@ -757,8 +858,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 fullWidth
               >
                 <MenuItem value="">Pilih Sumber Informasi</MenuItem>
-                {sumberList.map((s, i) => (
-                  <MenuItem key={i} value={s.sumber}>{s.sumber}</MenuItem>
+                {sumberList.map((s) => (
+                  <MenuItem key={s.id || `sumber-${s.sumber}`} value={s.sumber}>{s.sumber}</MenuItem>
                 ))}
               </TextField>
               <TextField label="Keterangan" name="ket" value={form.ket} onChange={handleChange} fullWidth multiline minRows={3} />
