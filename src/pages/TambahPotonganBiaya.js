@@ -25,12 +25,14 @@ const TambahPotonganBiaya = () => {
 
   const [form, setForm] = useState({
     cabangOffice: '',
+    jalurPendaftaran: '',
     jenisPotongan: '',
     jumlahPotongan: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [jenisPotonganList, setJenisPotonganList] = useState([]);
   const [kantorList, setKantorList] = useState([]);
+  const [jalurList, setJalurList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -39,8 +41,23 @@ const TambahPotonganBiaya = () => {
   }, [loading, userData, navigate]);
 
   useEffect(() => {
-    fetchData();
-    fetchKantor();
+    let isMounted = true;
+
+    const fetchAllData = async () => {
+      if (isMounted) {
+        await Promise.all([
+          fetchData(),
+          fetchKantor(),
+          fetchJalur()
+        ]);
+      }
+    };
+
+    fetchAllData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchData = async () => {
@@ -49,7 +66,7 @@ const TambahPotonganBiaya = () => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setJenisPotonganList(data);
     } catch (error) {
-      // Handle error silently
+      console.error('Error fetching potongan biaya:', error);
     }
   };
 
@@ -59,7 +76,17 @@ const TambahPotonganBiaya = () => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setKantorList(data);
     } catch (error) {
-      // Handle error silently
+      console.error('Error fetching kantor:', error);
+    }
+  };
+
+  const fetchJalur = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'jalur_pendaftaran'));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setJalurList(data);
+    } catch (error) {
+      console.error('Error fetching jalur pendaftaran:', error);
     }
   };
 
@@ -67,6 +94,13 @@ const TambahPotonganBiaya = () => {
     const { name, value } = e.target;
     if (name === 'jumlahPotongan') {
       setForm(prev => ({ ...prev, [name]: formatPotongan(value) }));
+    } else if (name === 'cabangOffice') {
+      // Reset jalur pendaftaran ketika kantor cabang berubah
+      setForm(prev => ({
+        ...prev,
+        [name]: value,
+        jalurPendaftaran: ''
+      }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
@@ -74,34 +108,54 @@ const TambahPotonganBiaya = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validasi form
+    if (!form.cabangOffice || !form.jalurPendaftaran || !form.jenisPotongan || !form.jumlahPotongan) {
+      alert('Semua field harus diisi');
+      return;
+    }
+
     try {
       if (editingId) {
         await updateDoc(doc(db, 'potongan_biaya', editingId), form);
       } else {
         await addDoc(collection(db, 'potongan_biaya'), form);
       }
-      setForm({ cabangOffice: '', jenisPotongan: '', jumlahPotongan: '' });
+      setForm({ cabangOffice: '', jalurPendaftaran: '', jenisPotongan: '', jumlahPotongan: '' });
       setEditingId(null);
-      fetchData();
+      await fetchData();
     } catch (err) {
-      // Handle error silently
+      console.error('Error saving data:', err);
+      alert('Terjadi kesalahan saat menyimpan data');
     }
   };
 
   const handleEdit = (item) => {
     setForm({
       cabangOffice: item.cabangOffice || '',
-      jenisPotongan: item.jenisPotongan,
-      jumlahPotongan: item.jumlahPotongan
+      jalurPendaftaran: item.jalurPendaftaran || '',
+      jenisPotongan: item.jenisPotongan || '',
+      jumlahPotongan: item.jumlahPotongan || ''
     });
     setEditingId(item.id);
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Yakin hapus data ini?')) {
-      await deleteDoc(doc(db, 'potongan_biaya', id));
-      fetchData();
+      try {
+        await deleteDoc(doc(db, 'potongan_biaya', id));
+        await fetchData();
+      } catch (error) {
+        console.error('Error deleting data:', error);
+        alert('Terjadi kesalahan saat menghapus data');
+      }
     }
+  };
+
+  // Fungsi untuk mendapatkan jalur pendaftaran berdasarkan kantor cabang yang dipilih
+  const getAvailableJalur = () => {
+    if (!form.cabangOffice || !jalurList.length) return [];
+    return jalurList.filter(jalur => jalur.kantorCabang === form.cabangOffice);
   };
 
   if (loading) return <p>Loading...</p>;
@@ -135,13 +189,49 @@ const TambahPotonganBiaya = () => {
                 )}
               </Select>
             </FormControl>
+
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>Jalur Pendaftaran</InputLabel>
+              <Select
+                name="jalurPendaftaran"
+                value={form.jalurPendaftaran}
+                onChange={handleChange}
+                label="Jalur Pendaftaran"
+                disabled={!form.cabangOffice}
+              >
+                {!form.cabangOffice ? (
+                  <MenuItem disabled>Pilih kantor cabang terlebih dahulu</MenuItem>
+                ) : getAvailableJalur().length === 0 ? (
+                  <MenuItem disabled>Tidak ada jalur tersedia untuk kantor ini</MenuItem>
+                ) : (
+                  getAvailableJalur().map((jalur) => (
+                    <MenuItem key={jalur.id} value={jalur.jalurPendaftaran}>
+                      {jalur.jalurPendaftaran}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
             <TextField
-              label="Jenis Potongan" name="jenisPotongan" fullWidth margin="normal"
-              value={form.jenisPotongan} onChange={handleChange} required
+              label="Jenis Potongan"
+              name="jenisPotongan"
+              fullWidth
+              margin="normal"
+              value={form.jenisPotongan}
+              onChange={handleChange}
+              required
+              InputLabelProps={{ shrink: true }}
             />
             <TextField
-              label="Jumlah Potongan (cth: 200.000)" name="jumlahPotongan" fullWidth margin="normal"
-              value={form.jumlahPotongan} onChange={handleChange} required
+              label="Jumlah Potongan"
+              name="jumlahPotongan"
+              fullWidth
+              margin="normal"
+              value={form.jumlahPotongan}
+              onChange={handleChange}
+              required
+              placeholder="Contoh: 200.000"
+              InputLabelProps={{ shrink: true }}
             />
             <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
               {editingId ? 'Simpan Perubahan' : 'Tambah Potongan Biaya'}
@@ -149,7 +239,7 @@ const TambahPotonganBiaya = () => {
             {editingId && (
               <Button onClick={() => {
                 setEditingId(null);
-                setForm({ cabangOffice: '', jenisPotongan: '', jumlahPotongan: '' });
+                setForm({ cabangOffice: '', jalurPendaftaran: '', jenisPotongan: '', jumlahPotongan: '' });
               }} fullWidth sx={{ mt: 1 }}>
                 Batal Edit
               </Button>
@@ -166,6 +256,7 @@ const TambahPotonganBiaya = () => {
                 <TableRow>
                   <TableCell>No</TableCell>
                   <TableCell>Kantor Cabang</TableCell>
+                  <TableCell>Jalur Pendaftaran</TableCell>
                   <TableCell>Jenis Potongan</TableCell>
                   <TableCell>Jumlah Potongan</TableCell>
                   <TableCell align="center">Aksi</TableCell>
@@ -178,8 +269,9 @@ const TambahPotonganBiaya = () => {
                     <TableRow key={item.id}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{item.cabangOffice || 'Belum dipilih'}</TableCell>
-                      <TableCell>{item.jenisPotongan}</TableCell>
-                      <TableCell>{item.jumlahPotongan}</TableCell>
+                      <TableCell>{item.jalurPendaftaran || 'Belum dipilih'}</TableCell>
+                      <TableCell>{item.jenisPotongan || 'Tidak ada'}</TableCell>
+                      <TableCell>Rp {item.jumlahPotongan || '0'}</TableCell>
                       <TableCell align="center">
                         <IconButton onClick={() => handleEdit(item)}><Edit fontSize="small" /></IconButton>
                         <IconButton onClick={() => handleDelete(item.id)}><Delete fontSize="small" /></IconButton>

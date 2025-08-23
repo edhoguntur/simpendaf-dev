@@ -145,25 +145,39 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
   }, [biayaJurusanList, jurusanMasterList, kantorList, userData, form.kantorCabang]);
 
   /**
-   * Mendapatkan biaya pendaftaran yang tersedia berdasarkan kantor cabang yang dipilih
-   * Filter berdasarkan kantor cabang di form, sama seperti logic pada jurusan
+   * Mendapatkan biaya pendaftaran yang tersedia berdasarkan kantor cabang dan jalur pendaftaran yang dipilih
+   * Filter berdasarkan kantor cabang dan jalur pendaftaran di form
    * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @param {string} selectedJalurPendaftaran - Jalur pendaftaran yang dipilih di form (optional)
    * @returns {Array} List biaya pendaftaran yang sudah difilter
    */
-  const getAvailableBiayaPendaftaran = useCallback((selectedKantorCabang = null) => {
+  const getAvailableBiayaPendaftaran = useCallback((selectedKantorCabang = null, selectedJalurPendaftaran = null) => {
     if (!biayaList.length) return [];
 
-    // Tentukan kantorCabang yang akan digunakan untuk filtering
+    // Tentukan kantorCabang dan jalurPendaftaran yang akan digunakan untuk filtering
     const kantorCabangForFiltering = selectedKantorCabang || form.kantorCabang || userData?.cabangOffice;
+    const jalurPendaftaranForFiltering = selectedJalurPendaftaran || form.jalurPendaftaran;
 
-    // Filter berdasarkan kantor cabang yang dipilih/default
+    // Filter berdasarkan kantor cabang dan jalur pendaftaran yang dipilih/default
+    let filteredList = biayaList;
+
+    // Filter berdasarkan kantor cabang
     if (kantorCabangForFiltering) {
-      return biayaList.filter(b => b.cabangOffice === kantorCabangForFiltering);
+      filteredList = filteredList.filter(b => b.cabangOffice === kantorCabangForFiltering);
     }
 
-    // Jika tidak ada kantor cabang yang dipilih, tampilkan semua (untuk pimpinan)
-    return userData?.role === 'pimpinan' ? biayaList : [];
-  }, [biayaList, userData, form.kantorCabang]);
+    // Filter berdasarkan jalur pendaftaran jika dipilih
+    if (jalurPendaftaranForFiltering) {
+      filteredList = filteredList.filter(b => b.jalurPendaftaran === jalurPendaftaranForFiltering);
+    }
+
+    // Jika tidak ada filter yang diterapkan, tampilkan semua (untuk pimpinan)
+    if (!kantorCabangForFiltering && userData?.role === 'pimpinan') {
+      return biayaList;
+    }
+
+    return filteredList;
+  }, [biayaList, userData, form.kantorCabang, form.jalurPendaftaran]);
 
   /**
    * Mendapatkan potongan biaya yang tersedia berdasarkan kantor cabang yang dipilih
@@ -206,6 +220,27 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
 
     return [];
   }, [kantorList, userData]);
+
+  /**
+   * Mendapatkan jalur pendaftaran yang tersedia berdasarkan kantor cabang yang dipilih
+   * Filter berdasarkan kantor cabang di form, sama seperti logic pada jurusan
+   * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @returns {Array} List jalur pendaftaran yang sudah difilter
+   */
+  const getAvailableJalurPendaftaran = useCallback((selectedKantorCabang) => {
+    if (!jalurList.length) return [];
+
+    // Tentukan kantor cabang yang akan digunakan untuk filter
+    const kantorCabang = selectedKantorCabang || userData?.cabangOffice;
+
+    // Filter berdasarkan kantor cabang yang dipilih/default
+    if (kantorCabang) {
+      return jalurList.filter(j => j.kantorCabang === kantorCabang);
+    }
+
+    // Jika tidak ada kantor cabang yang dipilih, tampilkan semua (untuk pimpinan)
+    return jalurList;
+  }, [jalurList, userData]);
 
   // ===================== FORM INITIALIZATION =====================
   // Effect untuk mengisi form saat mode edit
@@ -467,7 +502,17 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         biayaPendaftaran: '',     // Reset karena biaya pendaftaran bergantung pada kantor
         totalBiayaPendaftaran: '',
         jenisPotongan: '',        // Reset karena potongan bergantung pada kantor
-        jumlahPotongan: ''
+        jumlahPotongan: '',
+        jalurPendaftaran: ''      // Reset karena jalur pendaftaran bergantung pada kantor
+      }));
+    }
+    // Handle perubahan jalur pendaftaran - reset biaya pendaftaran
+    else if (name === 'jalurPendaftaran') {
+      setForm(prev => ({
+        ...prev,
+        jalurPendaftaran: value,
+        biayaPendaftaran: '',     // Reset karena biaya pendaftaran bergantung pada jalur
+        totalBiayaPendaftaran: ''
       }));
     }
     // Handle perubahan jurusan - update biaya dan hitung ulang total
@@ -578,6 +623,20 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                   </MenuItem>
                 ))}
               </TextField>
+              <TextField
+                select
+                label="Jalur Pendaftaran"
+                name="jalurPendaftaran"
+                value={form.jalurPendaftaran}
+                onChange={handleChange}
+                fullWidth
+                required
+              >
+                <MenuItem value="">Pilih Jalur Pendaftaran</MenuItem>
+                {getAvailableJalurPendaftaran(form.kantorCabang).map((j, i) => (
+                  <MenuItem key={i} value={j.jalurPendaftaran}>{j.jalurPendaftaran}</MenuItem>
+                ))}
+              </TextField>
               <TextField label="Nama Pendaftar" name="namaPendaftar" value={form.namaPendaftar} onChange={handleChange} fullWidth />
               <TextField label="Nomor WA" name="nomorWA" value={form.nomorWA} onChange={handleChange} fullWidth />
               <TextField label="Email" name="email" value={form.email} onChange={handleChange} fullWidth />
@@ -604,9 +663,9 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 required
               >
                 <MenuItem value="">Pilih Biaya Pendaftaran</MenuItem>
-                {getAvailableBiayaPendaftaran(form.kantorCabang).map((b, i) => (
+                {getAvailableBiayaPendaftaran(form.kantorCabang, form.jalurPendaftaran).map((b, i) => (
                   <MenuItem key={i} value={b.jumlahBiayaPendaftaran}>
-                    {b.jenisBiayaPendaftaran} - Rp {b.jumlahBiayaPendaftaran}
+                    {b.jalurPendaftaran} - Rp {b.jumlahBiayaPendaftaran}
                   </MenuItem>
                 ))}
               </TextField>
@@ -700,20 +759,6 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                 <MenuItem value="">Pilih Sumber Informasi</MenuItem>
                 {sumberList.map((s, i) => (
                   <MenuItem key={i} value={s.sumber}>{s.sumber}</MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Jalur Pendaftaran"
-                name="jalurPendaftaran"
-                value={form.jalurPendaftaran}
-                onChange={handleChange}
-                fullWidth
-                required
-              >
-                <MenuItem value="">Pilih Jalur Pendaftaran</MenuItem>
-                {jalurList.map((j, i) => (
-                  <MenuItem key={i} value={j.jalurPendaftaran}>{j.jalurPendaftaran}</MenuItem>
                 ))}
               </TextField>
               <TextField label="Keterangan" name="ket" value={form.ket} onChange={handleChange} fullWidth multiline minRows={3} />
