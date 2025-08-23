@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   Box, Typography, TextField, Button, Paper,
   Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, IconButton
+  TableHead, TableRow, IconButton, MenuItem
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import { db } from '../firebase';
@@ -18,10 +18,12 @@ const TambahJalurPendaftaran = () => {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    jalurPendaftaran: ''
+    jalurPendaftaran: '',
+    kantorCabang: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [jalurList, setJalurList] = useState([]);
+  const [kantorList, setKantorList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -31,12 +33,19 @@ const TambahJalurPendaftaran = () => {
 
   useEffect(() => {
     fetchJalur();
+    fetchKantor();
   }, []);
 
   const fetchJalur = async () => {
     const snapshot = await getDocs(collection(db, 'jalur_pendaftaran'));
     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setJalurList(data);
+  };
+
+  const fetchKantor = async () => {
+    const snapshot = await getDocs(collection(db, 'kantor'));
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setKantorList(data);
   };
 
   const handleChange = (e) => {
@@ -51,7 +60,7 @@ const TambahJalurPendaftaran = () => {
       } else {
         await addDoc(collection(db, 'jalur_pendaftaran'), form);
       }
-      setForm({ jalurPendaftaran: '' });
+      setForm({ jalurPendaftaran: '', kantorCabang: '' });
       setEditingId(null);
       fetchJalur();
     } catch (err) {
@@ -61,7 +70,8 @@ const TambahJalurPendaftaran = () => {
 
   const handleEdit = (item) => {
     setForm({
-      jalurPendaftaran: item.jalurPendaftaran || ''
+      jalurPendaftaran: item.jalurPendaftaran || '',
+      kantorCabang: item.kantorCabang || ''
     });
     setEditingId(item.id);
   };
@@ -86,6 +96,24 @@ const TambahJalurPendaftaran = () => {
           </Typography>
           <form onSubmit={handleSubmit}>
             <TextField
+              select
+              label="Kantor Cabang"
+              name="kantorCabang"
+              value={form.kantorCabang}
+              onChange={handleChange}
+              fullWidth
+              margin="normal"
+              required
+            >
+              <MenuItem value="">Pilih Kantor Cabang</MenuItem>
+              {kantorList.map((kantor) => (
+                <MenuItem key={kantor.id} value={kantor.namaKantor}>
+                  {kantor.namaKantor}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
               label="Jalur Pendaftaran"
               name="jalurPendaftaran"
               value={form.jalurPendaftaran}
@@ -101,7 +129,7 @@ const TambahJalurPendaftaran = () => {
             {editingId && (
               <Button onClick={() => {
                 setEditingId(null);
-                setForm({ jalurPendaftaran: '' });
+                setForm({ jalurPendaftaran: '', kantorCabang: '' });
               }} fullWidth sx={{ mt: 1 }}>
                 Batal Edit
               </Button>
@@ -117,6 +145,7 @@ const TambahJalurPendaftaran = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>No</TableCell>
+                  <TableCell>Kantor Cabang</TableCell>
                   <TableCell>Jalur Pendaftaran</TableCell>
                   <TableCell align="center">Aksi</TableCell>
                 </TableRow>
@@ -125,6 +154,7 @@ const TambahJalurPendaftaran = () => {
                 {jalurList.map((item, index) => (
                   <TableRow key={item.id}>
                     <TableCell>{index + 1}</TableCell>
+                    <TableCell>{item.kantorCabang}</TableCell>
                     <TableCell>{item.jalurPendaftaran}</TableCell>
                     <TableCell align="center">
                       <IconButton onClick={() => handleEdit(item)}><Edit fontSize="small" /></IconButton>

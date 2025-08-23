@@ -25,6 +25,7 @@ const BiayaJurusan = () => {
 
   const [form, setForm] = useState({
     cabangOffice: '',
+    jalurPendaftaran: '',
     jurusanId: '',
     biaya: ''
   });
@@ -32,6 +33,7 @@ const BiayaJurusan = () => {
   const [biayaJurusanList, setBiayaJurusanList] = useState([]);
   const [kantorList, setKantorList] = useState([]);
   const [jurusanList, setJurusanList] = useState([]);
+  const [jalurList, setJalurList] = useState([]);
 
   useEffect(() => {
     if (!loading && (!userData || userData.role !== 'pimpinan')) {
@@ -43,6 +45,7 @@ const BiayaJurusan = () => {
     fetchData();
     fetchKantor();
     fetchJurusan();
+    fetchJalur();
   }, []);
 
   const fetchData = async () => {
@@ -63,10 +66,23 @@ const BiayaJurusan = () => {
     setJurusanList(data);
   };
 
+  const fetchJalur = async () => {
+    const snapshot = await getDocs(collection(db, 'jalur_pendaftaran'));
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setJalurList(data);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'biaya') {
       setForm(prev => ({ ...prev, [name]: formatBiaya(value) }));
+    } else if (name === 'cabangOffice') {
+      // Reset jalur pendaftaran ketika kantor cabang berubah
+      setForm(prev => ({
+        ...prev,
+        [name]: value,
+        jalurPendaftaran: ''
+      }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
@@ -80,7 +96,7 @@ const BiayaJurusan = () => {
       } else {
         await addDoc(collection(db, 'biaya_jurusan'), form);
       }
-      setForm({ cabangOffice: '', jurusanId: '', biaya: '' });
+      setForm({ cabangOffice: '', jalurPendaftaran: '', jurusanId: '', biaya: '' });
       setEditingId(null);
       fetchData();
     } catch (err) {
@@ -91,6 +107,7 @@ const BiayaJurusan = () => {
   const handleEdit = (item) => {
     setForm({
       cabangOffice: item.cabangOffice,
+      jalurPendaftaran: item.jalurPendaftaran || '',
       jurusanId: item.jurusanId,
       biaya: item.biaya
     });
@@ -112,6 +129,12 @@ const BiayaJurusan = () => {
   const getKantorName = (kantorValue) => {
     // Karena sekarang cabangOffice menyimpan nama kantor (value), langsung return
     return kantorValue || 'Tidak ditemukan';
+  };
+
+  // Fungsi untuk mendapatkan jalur pendaftaran berdasarkan kantor cabang yang dipilih
+  const getAvailableJalur = () => {
+    if (!form.cabangOffice || !jalurList.length) return [];
+    return jalurList.filter(jalur => jalur.kantorCabang === form.cabangOffice);
   };
 
   if (loading) return <p>Loading...</p>;
@@ -142,6 +165,28 @@ const BiayaJurusan = () => {
             </FormControl>
 
             <FormControl fullWidth margin="normal" required>
+              <InputLabel>Jalur Pendaftaran</InputLabel>
+              <Select
+                name="jalurPendaftaran"
+                value={form.jalurPendaftaran}
+                onChange={handleChange}
+                disabled={!form.cabangOffice}
+              >
+                {!form.cabangOffice ? (
+                  <MenuItem disabled>Pilih kantor cabang terlebih dahulu</MenuItem>
+                ) : getAvailableJalur().length === 0 ? (
+                  <MenuItem disabled>Tidak ada jalur tersedia untuk kantor ini</MenuItem>
+                ) : (
+                  getAvailableJalur().map((jalur) => (
+                    <MenuItem key={jalur.id} value={jalur.jalurPendaftaran}>
+                      {jalur.jalurPendaftaran}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth margin="normal" required>
               <InputLabel>Jurusan</InputLabel>
               <Select
                 name="jurusanId"
@@ -157,13 +202,27 @@ const BiayaJurusan = () => {
             </FormControl>
 
             <TextField
-              label="Biaya" name="biaya" fullWidth margin="normal"
-              value={form.biaya} onChange={handleChange} required
+              label="Biaya"
+              name="biaya"
+              fullWidth
+              margin="normal"
+              value={form.biaya}
+              onChange={handleChange}
+              required
               placeholder="Contoh: 1.500.000"
+              InputLabelProps={{ shrink: true }}
             />
             <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
               {editingId ? 'Update' : 'Tambah'}
             </Button>
+            {editingId && (
+              <Button onClick={() => {
+                setEditingId(null);
+                setForm({ cabangOffice: '', jalurPendaftaran: '', jurusanId: '', biaya: '' });
+              }} fullWidth sx={{ mt: 1 }}>
+                Batal Edit
+              </Button>
+            )}
           </form>
         </Paper>
 
@@ -175,6 +234,7 @@ const BiayaJurusan = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Cabang Office</TableCell>
+                  <TableCell>Jalur Pendaftaran</TableCell>
                   <TableCell>Jurusan</TableCell>
                   <TableCell>Biaya</TableCell>
                   <TableCell>Aksi</TableCell>
@@ -184,6 +244,7 @@ const BiayaJurusan = () => {
                 {biayaJurusanList.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{getKantorName(item.cabangOffice)}</TableCell>
+                    <TableCell>{item.jalurPendaftaran || 'Belum dipilih'}</TableCell>
                     <TableCell>{getJurusanName(item.jurusanId)}</TableCell>
                     <TableCell>Rp {item.biaya}</TableCell>
                     <TableCell>
