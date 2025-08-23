@@ -162,26 +162,32 @@ const HeaderPimpinan = () => {
         </ListItem>
         <Collapse in={expandedMobile.data} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-gelombang')}>
+              <ListItemText primary="Tambah Gelombang" />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-kantor')}>
+              <ListItemText primary="Tambah Kantor" />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-jalur-pendaftaran')}>
+              <ListItemText primary="Tambah Jalur Pendaftaran" />
+            </ListItem>
+            <Divider sx={{ my: 1 }} />
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/daftar-jurusan')}>
               <ListItemText primary="Daftar Jurusan" />
             </ListItem>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/biaya-jurusan')}>
               <ListItemText primary="Biaya Jurusan" />
             </ListItem>
-            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/metode-bayar')}>
-              <ListItemText primary="Metode Bayar" />
-            </ListItem>
-            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-kantor')}>
-              <ListItemText primary="Kantor Cabang" />
+            <Divider sx={{ my: 1 }} />
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-biaya-pendaftaran')}>
+              <ListItemText primary="Tambah Biaya Pendaftaran" />
             </ListItem>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-potongan-biaya')}>
               <ListItemText primary="Tambah Potongan Biaya" />
             </ListItem>
-            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-biaya-pendaftaran')}>
-              <ListItemText primary="Tambah Biaya Pendaftaran" />
-            </ListItem>
-            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-jalur-pendaftaran')}>
-              <ListItemText primary="Tambah Jalur Pendaftaran" />
+            <Divider sx={{ my: 1 }} />
+            <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/metode-bayar')}>
+              <ListItemText primary="Metode Bayar" />
             </ListItem>
             <ListItem button sx={{ pl: 4 }} onClick={() => handleMobileNavigate('/pimpinan/tambah-sumber-informasi')}>
               <ListItemText primary="Sumber Informasi" />
@@ -345,29 +351,32 @@ const HeaderPimpinan = () => {
                 Data
               </Button>
               <Menu anchorEl={anchorData} open={Boolean(anchorData)} onClose={() => setAnchorData(null)}>
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-gelombang'); }}>
+                  Tambah Gelombang
+                </MenuItem>
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-kantor'); }}>
+                  Tambah Kantor
+                </MenuItem>
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-jalur-pendaftaran'); }}>
+                  Tambah Jalur Pendaftaran
+                </MenuItem>
+                <Divider />
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/daftar-jurusan'); }}>
                   Daftar Jurusan
                 </MenuItem>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/biaya-jurusan'); }}>
                   Biaya Jurusan
                 </MenuItem>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-kantor'); }}>
-                  Tambah Kantor
-                </MenuItem>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-gelombang'); }}>
-                  Tambah Gelombang
-                </MenuItem>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/metode-bayar'); }}>
-                  Metode Bayar
+                <Divider />
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-biaya-pendaftaran'); }}>
+                  Tambah Biaya Pendaftaran
                 </MenuItem>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-potongan-biaya'); }}>
                   Tambah Potongan Biaya
                 </MenuItem>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-biaya-pendaftaran'); }}>
-                  Tambah Biaya Pendaftaran
-                </MenuItem>
-                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-jalur-pendaftaran'); }}>
-                  Tambah Jalur Pendaftaran
+                <Divider />
+                <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/metode-bayar'); }}>
+                  Metode Bayar
                 </MenuItem>
                 <MenuItem onClick={() => { setAnchorData(null); navigate('/pimpinan/tambah-sumber-informasi'); }}>
                   Sumber Informasi
