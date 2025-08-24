@@ -37,6 +37,23 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
   const [presenterList, setPresenterList] = useState([]);
   const [gelombangList, setGelombangList] = useState([]);
 
+  // Helper function untuk filter presenter berdasarkan kantor cabang
+  const getAvailablePresenter = useCallback(() => {
+    if (!presenterList.length) return [];
+
+    // Gunakan kantor cabang dari data pendaftar atau user yang sedang login
+    const kantorCabang = dataPendaftar?.cabangOffice || userData?.cabangOffice;
+
+    // Filter berdasarkan kantor cabang
+    // Note: Dalam data presenter, cabang office disimpan di field 'alamat'
+    if (kantorCabang) {
+      return presenterList.filter(p => p.alamat === kantorCabang);
+    }
+
+    // Jika tidak ada kantor cabang, tampilkan semua (untuk pimpinan)
+    return presenterList;
+  }, [presenterList, dataPendaftar, userData]);
+
   useEffect(() => {
     if (dataPendaftar) {
       // Validasi permission untuk presenter saat edit
@@ -210,38 +227,46 @@ const FormDaftarUlang = ({ open, onClose, dataPendaftar, isEditData, fetchDaftar
             <ToggleButtonGroup
               value={form.presenter}
               onChange={(e, newVal) => {
-                // Semua user bisa memilih presenter manapun
                 setForm(prev => ({ ...prev, presenter: newVal }));
               }}
               color="primary"
               multiple
               sx={{ flexWrap: 'wrap', gap: 1 }}
             >
-              {presenterList.map((p, i) => (
-                <ToggleButton
-                  key={i}
-                  value={p.namaLengkap}
-                  sx={{
-                    fontSize: 12,
-                    textTransform: 'none',
-                    borderRadius: '8px',
-                    borderColor: '#1976d2',
-                    '&.Mui-selected': {
-                      backgroundColor: '#1976d2',
-                      color: '#fff',
-                    },
-                    '&:hover': {
-                      backgroundColor: '#1565c0',
-                      color: '#fff'
-                    }
-                  }}
-                >
-                  {p.namaLengkap}
-                </ToggleButton>
-              ))}
+              {getAvailablePresenter().length === 0 ? (
+                <Typography variant="caption" color="text.secondary" sx={{ p: 1 }}>
+                  Tidak ada presenter tersedia untuk kantor cabang ini
+                </Typography>
+              ) : (
+                getAvailablePresenter().map((p, i) => (
+                  <ToggleButton
+                    key={i}
+                    value={p.namaLengkap}
+                    sx={{
+                      fontSize: 12,
+                      textTransform: 'none',
+                      borderRadius: '8px',
+                      borderColor: '#1976d2',
+                      '&.Mui-selected': {
+                        backgroundColor: '#1976d2',
+                        color: '#fff',
+                      },
+                      '&:hover': {
+                        backgroundColor: '#1565c0',
+                        color: '#fff'
+                      }
+                    }}
+                  >
+                    {p.namaLengkap}
+                  </ToggleButton>
+                ))
+              )}
             </ToggleButtonGroup>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Menampilkan semua presenter ({presenterList.length} presenter tersedia)
+              {dataPendaftar?.cabangOffice || userData?.cabangOffice ?
+                `Menampilkan presenter untuk ${dataPendaftar?.cabangOffice || userData?.cabangOffice} (${getAvailablePresenter().length} presenter tersedia)` :
+                'Menampilkan semua presenter'
+              }
             </Typography>
           </Box>
 

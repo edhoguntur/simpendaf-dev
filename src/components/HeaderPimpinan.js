@@ -51,7 +51,7 @@ const HeaderPimpinan = () => {
 
   const handleLogout = async () => {
     await signOut(auth);
-    navigate('/login-pimpinan');
+    navigate('/');
   };
 
   const handleMobileMenuToggle = (section) => {

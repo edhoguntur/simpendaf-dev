@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from './pages/HomePage';
-import LoginPimpinan from './pages/LoginPimpinan';
-import LoginPresenter from './pages/LoginPresenter';
+// import LoginPimpinan from './pages/LoginPimpinan';
+// import LoginPresenter from './pages/LoginPresenter';
 import PimpinanDashboard from './pages/PimpinanDashboard';
 import PresenterDashboard from './pages/PresenterDashboard';
 import TambahUser from './pages/TambahUser';
@@ -34,8 +34,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/login-pimpinan" element={<LoginPimpinan />} />
-          <Route path="/login-presenter" element={<LoginPresenter />} />
+          {/* <Route path="/login-pimpinan" element={<LoginPimpinan />} /> */}
+          {/* <Route path="/login-presenter" element={<LoginPresenter />} /> */}
 
           {/* Protected Routes untuk Pimpinan */}
           <Route path="/pimpinan/dashboard" element={

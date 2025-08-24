@@ -48,7 +48,7 @@ const HeaderPresenter = () => {
 
   const handleLogout = async () => {
     await signOut(auth);
-    navigate('/login-presenter');
+    navigate('/');
   };
 
   const handleMobileMenuToggle = (section) => {
