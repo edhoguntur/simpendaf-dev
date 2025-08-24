@@ -279,6 +279,28 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
     return jalurList;
   }, [jalurList, userData]);
 
+  /**
+   * Mendapatkan presenter yang tersedia berdasarkan kantor cabang yang dipilih
+   * Filter berdasarkan kantor cabang di form
+   * @param {string} selectedKantorCabang - Kantor cabang yang dipilih di form (optional)
+   * @returns {Array} List presenter yang sudah difilter
+   */
+  const getAvailablePresenter = useCallback((selectedKantorCabang) => {
+    if (!presenterList.length) return [];
+
+    // Tentukan kantor cabang yang akan digunakan untuk filter
+    const kantorCabang = selectedKantorCabang || form.kantorCabang || userData?.cabangOffice;
+
+    // Filter berdasarkan kantor cabang yang dipilih/default
+    // Note: Dalam data presenter, cabang office disimpan di field 'alamat'
+    if (kantorCabang) {
+      return presenterList.filter(p => p.alamat === kantorCabang);
+    }
+
+    // Jika tidak ada kantor cabang yang dipilih, tampilkan semua (untuk pimpinan)
+    return presenterList;
+  }, [presenterList, userData, form.kantorCabang]);
+
   // ===================== FORM INITIALIZATION =====================
   // Effect untuk mengisi form saat mode edit
   useEffect(() => {
@@ -553,7 +575,8 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
         totalBiayaPendaftaran: '',
         jenisPotongan: '',        // Reset karena potongan bergantung pada kantor
         jumlahPotongan: '',
-        jalurPendaftaran: ''      // Reset karena jalur pendaftaran bergantung pada kantor
+        jalurPendaftaran: '',     // Reset karena jalur pendaftaran bergantung pada kantor
+        presenter: []             // Reset karena presenter bergantung pada kantor
       }));
     }
     // Handle perubahan jalur pendaftaran - reset fields yang bergantung
@@ -815,29 +838,45 @@ const FormPendaftaranSiswa = ({ open, onClose, fetchData, editingData }) => {
                   size="small"
                   sx={{ flexWrap: 'wrap', gap: 1 }}
                 >
-                  {presenterList.map((p) => (
-                    <ToggleButton
-                      key={p.id || `presenter-${p.namaLengkap}`}
-                      value={p.namaLengkap}
-                      selected={form.presenter.includes(p.namaLengkap)}
-                      sx={{
-                        textTransform: 'none',
-                        borderRadius: '8px',
-                        borderColor: '#1976d2',
-                        '&.Mui-selected': {
-                          backgroundColor: '#1976d2',
-                          color: '#fff',
-                        },
-                        '&:hover': {
-                          backgroundColor: '#1565c0',
-                          color: '#fff'
-                        }
-                      }}
-                    >
-                      {p.namaLengkap}
-                    </ToggleButton>
-                  ))}
+                  {!form.kantorCabang ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ p: 1 }}>
+                      Pilih kantor cabang terlebih dahulu
+                    </Typography>
+                  ) : getAvailablePresenter(form.kantorCabang).length === 0 ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ p: 1 }}>
+                      Tidak ada presenter tersedia untuk kantor cabang ini
+                    </Typography>
+                  ) : (
+                    getAvailablePresenter(form.kantorCabang).map((p) => (
+                      <ToggleButton
+                        key={p.id || `presenter-${p.namaLengkap}`}
+                        value={p.namaLengkap}
+                        selected={form.presenter.includes(p.namaLengkap)}
+                        sx={{
+                          textTransform: 'none',
+                          borderRadius: '8px',
+                          borderColor: '#1976d2',
+                          '&.Mui-selected': {
+                            backgroundColor: '#1976d2',
+                            color: '#fff',
+                          },
+                          '&:hover': {
+                            backgroundColor: '#1565c0',
+                            color: '#fff'
+                          }
+                        }}
+                      >
+                        {p.namaLengkap}
+                      </ToggleButton>
+                    ))
+                  )}
                 </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {form.kantorCabang ?
+                    `Menampilkan presenter untuk ${form.kantorCabang} (${getAvailablePresenter(form.kantorCabang).length} presenter tersedia)` :
+                    'Pilih kantor cabang untuk melihat presenter yang tersedia'
+                  }
+                </Typography>
               </Box>
 
               <TextField select label="Cara Daftar" name="caraDaftar" value={form.caraDaftar} onChange={handleChange} fullWidth>
